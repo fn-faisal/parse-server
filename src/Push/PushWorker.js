@@ -21,7 +21,7 @@ function groupByBadge(installations) {
 }
 
 export class PushWorker {
-  subscriber: ?any;
+  subscriber: any;
   adapter: any;
   channel: string;
 
@@ -36,7 +36,7 @@ export class PushWorker {
       subscriber.subscribe(this.channel);
       subscriber.on('message', (channel, messageStr) => {
         const workItem = JSON.parse(messageStr);
-        this.run(workItem);
+        this.getAndRun(workItem);
       });
     }
   }
@@ -47,7 +47,7 @@ export class PushWorker {
     }
   }
 
-  run({ body, query, pushStatus, applicationId, UTCOffset }: any): Promise<*> {
+  run({ body, query, pushStatus, applicationId, UTCOffset }: any): Promise {
     const config = Config.get(applicationId);
     const auth = master(config);
     const where = utils.applyDeviceTokenExists(query.where);
@@ -55,7 +55,7 @@ export class PushWorker {
     pushStatus = pushStatusHandler(config, pushStatus.objectId);
     return rest.find(config, auth, '_Installation', where, query).then(({results}) => {
       if (results.length == 0) {
-        return;
+        return pushStatus.trackSent(results);
       }
       return this.sendToAdapter(body, results, pushStatus, config, UTCOffset);
     }, err => {
@@ -63,7 +63,7 @@ export class PushWorker {
     });
   }
 
-  sendToAdapter(body: any, installations: any[], pushStatus: any, config: Config, UTCOffset: ?any): Promise<*> {
+  sendToAdapter(body: any, installations: any, pushStatus: any, config: Config, UTCOffset: any): Promise {
     // Check if we have locales in the push body
     const locales = utils.getLocalesFromPush(body);
     if (locales.length > 0) {
@@ -83,7 +83,8 @@ export class PushWorker {
     if (!utils.isPushIncrementing(body)) {
       logger.verbose(`Sending push to ${installations.length}`);
       return this.adapter.send(body, installations, pushStatus.objectId).then((results) => {
-        return pushStatus.trackSent(results, UTCOffset).then(() => results);
+        return pushStatus.trackSent(results, UTCOffset, undefined, installations.length - results.length)
+          .then(() => results);
       });
     }
 
@@ -98,6 +99,23 @@ export class PushWorker {
       return this.sendToAdapter(payload, installations, pushStatus, config, UTCOffset);
     });
     return Promise.all(promises);
+  }
+
+  getAndRun(workItem: any): Promise {
+    var _this = this;
+    if (!_this.subscriber.run) {
+      return _this.run(workItem);
+    }
+    return _this.subscriber.run(workItem).then(function (gotItem) {
+      if (gotItem) {
+        return _this.run(gotItem)
+          .then(function () {
+            return _this.getAndRun(gotItem)
+          })
+      } else {
+        return Promise.resolve();
+      }
+    });
   }
 }
 
