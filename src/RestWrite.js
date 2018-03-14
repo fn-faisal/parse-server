@@ -24,7 +24,7 @@ import logger    from './logger';
 // RestWrite will handle objectId, createdAt, and updatedAt for
 // everything. It also knows to use triggers and special modifications
 // for the _User class.
-function RestWrite(config, auth, className, query, data, originalData, clientSDK) {
+function RestWrite(config, auth, className, query, data, originalData, clientSDK, options) {
   if (auth.isReadOnly) {
     throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'Cannot perform a write operation when using readOnlyMasterKey');
   }
@@ -34,7 +34,8 @@ function RestWrite(config, auth, className, query, data, originalData, clientSDK
   this.clientSDK = clientSDK;
   this.storage = {};
   this.runOptions = {};
-  if (!query && data.objectId) {
+  const allowObjectId = options && options.allowObjectId === true;
+  if (!query && data.objectId && !allowObjectId) {
     throw new Parse.Error(Parse.Error.INVALID_KEY_NAME, 'objectId is an invalid field name.');
   }
 

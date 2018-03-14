@@ -135,6 +135,12 @@ const defaultColumns: {[string]: SchemaFields} = Object.freeze({
     "query":     {type:'String'}, //storing query as JSON string to prevent "Nested keys should not contain the '$' or '.' characters" error
     "lastUsed":  {type:'Date'},
     "timesUsed": {type:'Number'}
+  },
+  _ExportProgress: {
+    "objectId":      {type:'String'},
+    "id":            {type:'String'},
+    "masterKey":     {type:'String'},
+    "applicationId": {type:'String'}
   }
 });
 
@@ -143,9 +149,9 @@ const requiredColumns = Object.freeze({
   _Role: ["name", "ACL"]
 });
 
-const systemClasses = Object.freeze(['_User', '_Installation', '_Role', '_Session', '_Product', '_PushStatus', '_JobStatus', '_JobSchedule', '_Audience']);
+const systemClasses = Object.freeze(['_User', '_Installation', '_Role', '_Session', '_Product', '_PushStatus', '_JobStatus', '_JobSchedule', '_Audience',  '_ExportProgress' ]);
 
-const volatileClasses = Object.freeze(['_JobStatus', '_PushStatus', '_Hooks', '_GlobalConfig', '_JobSchedule', '_Audience']);
+const volatileClasses = Object.freeze(['_JobStatus', '_PushStatus', '_Hooks', '_GlobalConfig', '_JobSchedule', '_Audience', '_ExportProgress']);
 
 // 10 alpha numberic chars + uppercase
 const userIdRegex = /^[a-zA-Z0-9]{10}$/;
