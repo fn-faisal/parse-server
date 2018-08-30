@@ -1,8 +1,8 @@
-import {nullParser} from './cli/utils/parsers';
-
-let logsFolder = (() => {
+import { nullParser } from './Options/parsers';
+const { ParseServerOptions } = require('./Options/Definitions');
+const logsFolder = (() => {
   let folder = './logs/';
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+  if (typeof process !== 'undefined' && process.env.TESTING === '1') {
     folder = './test_logs/'
   }
   if (process.env.PARSE_SERVER_LOGS_FOLDER) {
@@ -11,25 +11,26 @@ let logsFolder = (() => {
   return folder;
 })();
 
-let { verbose, level } = (() => {
-  let verbose = process.env.VERBOSE ? true : false;
+const { verbose, level } = (() => {
+  const verbose = process.env.VERBOSE ? true : false;
   return { verbose, level: verbose ? 'verbose' : undefined }
 })();
 
-export default {
-  DefaultMongoURI: 'mongodb://localhost:27017/parse',
+
+const DefinitionDefaults = Object.keys(ParseServerOptions).reduce((memo, key) => {
+  const def = ParseServerOptions[key];
+  if (def.hasOwnProperty('default')) {
+    memo[key] = def.default;
+  }
+  return memo;
+}, {});
+
+const computedDefaults = {
   jsonLogs: process.env.JSON_LOGS || false,
   logsFolder,
   verbose,
   level,
-  silent: false,
-  enableAnonymousUsers: true,
-  allowClientClassCreation: true,
-  maxUploadSize: '20mb',
-  verifyUserEmails: false,
-  preventLoginWithUnverifiedEmail: false,
-  sessionLength: 31536000,
-  expireInactiveSessions: true,
-  revokeSessionOnPasswordReset: true,
-  schemaCacheTTL: 5000 // in ms
 }
+
+export default Object.assign({}, DefinitionDefaults, computedDefaults);
+export const DefaultMongoURI = DefinitionDefaults.databaseURI;

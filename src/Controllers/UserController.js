@@ -48,8 +48,8 @@ export class UserController extends AdaptableController {
       throw undefined;
     }
 
-    let query = {username: username, _email_verify_token: token};
-    let updateFields = { emailVerified: true, _email_verify_token: {__op: 'Delete'}};
+    const query = {username: username, _email_verify_token: token};
+    const updateFields = { emailVerified: true, _email_verify_token: {__op: 'Delete'}};
 
     // if the email verify token needs to be validated then
     // add additional query params and additional fields that need to be updated
@@ -59,12 +59,13 @@ export class UserController extends AdaptableController {
 
       updateFields._email_verify_token_expires_at = {__op: 'Delete'};
     }
-
-    return this.config.database.update('_User', query, updateFields).then((document) => {
-      if (!document) {
-        throw undefined;
+    const masterAuth = Auth.master(this.config);
+    var checkIfAlreadyVerified = new RestQuery(this.config, Auth.master(this.config), '_User', {username: username, emailVerified: true});
+    return checkIfAlreadyVerified.execute().then(result => {
+      if (result.results.length) {
+        return Promise.resolve(result.results.length[0]);
       }
-      return Promise.resolve(document);
+      return rest.update(this.config, masterAuth, '_User', query, updateFields);
     });
   }
 
@@ -119,8 +120,9 @@ export class UserController extends AdaptableController {
     // We may need to fetch the user in case of update email
     this.getUserIfNeeded(user).then((user) => {
       const username = encodeURIComponent(user.username);
-      let link = `${this.config.verifyEmailURL}?token=${token}&username=${username}`;
-      let options = {
+
+      const link = buildEmailLink(this.config.verifyEmailURL, username, token, this.config);
+      const options = {
         appName: this.config.appName,
         link: link,
         user: inflate('_User', user),
@@ -130,6 +132,28 @@ export class UserController extends AdaptableController {
       } else {
         this.adapter.sendMail(this.defaultVerificationEmail(options));
       }
+    });
+  }
+
+  /**
+   * Regenerates the given user's email verification token
+   *
+   * @param user
+   * @returns {*}
+   */
+  regenerateEmailVerifyToken(user) {
+    this.setEmailVerifyToken(user);
+    return this.config.database.update('_User', { username: user.username }, user);
+  }
+
+  resendVerificationEmail(username) {
+    return this.getUserIfNeeded({username: username}).then((aUser) => {
+      if (!aUser || aUser.emailVerified) {
+        throw undefined;
+      }
+      return this.regenerateEmailVerifyToken(aUser).then(() => {
+        this.sendVerificationEmail(aUser);
+      });
     });
   }
 
@@ -150,25 +174,25 @@ export class UserController extends AdaptableController {
     }
 
     return this.setPasswordResetToken(email)
-    .then(user => {
-      const token = encodeURIComponent(user._perishable_token);
-      const username = encodeURIComponent(user.username);
-      let link = `${this.config.requestResetPasswordURL}?token=${token}&username=${username}`
+      .then(user => {
+        const token = encodeURIComponent(user._perishable_token);
+        const username = encodeURIComponent(user.username);
 
-      let options = {
-        appName: this.config.appName,
-        link: link,
-        user: inflate('_User', user),
-      };
+        const link = buildEmailLink(this.config.requestResetPasswordURL, username, token, this.config);
+        const options = {
+          appName: this.config.appName,
+          link: link,
+          user: inflate('_User', user),
+        };
 
-      if (this.adapter.sendPasswordResetEmail) {
-        this.adapter.sendPasswordResetEmail(options);
-      } else {
-        this.adapter.sendMail(this.defaultResetPasswordEmail(options));
-      }
+        if (this.adapter.sendPasswordResetEmail) {
+          this.adapter.sendPasswordResetEmail(options);
+        } else {
+          this.adapter.sendMail(this.defaultResetPasswordEmail(options));
+        }
 
-      return Promise.resolve(user);
-    });
+        return Promise.resolve(user);
+      });
   }
 
   updatePassword(username, token, password) {
@@ -188,31 +212,44 @@ export class UserController extends AdaptableController {
   }
 
   defaultVerificationEmail({link, user, appName, }) {
-    let text = "Hi,\n\n" +
+    const text = "Hi,\n\n" +
         "You are being asked to confirm the e-mail address " + user.get("email") + " with " + appName + "\n\n" +
         "" +
         "Click here to confirm it:\n" + link;
-    let to = user.get("email");
-    let subject = 'Please verify your e-mail for ' + appName;
+    const to = user.get("email");
+    const subject = 'Please verify your e-mail for ' + appName;
     return { text, to, subject };
   }
 
   defaultResetPasswordEmail({link, user, appName, }) {
-    let text = "Hi,\n\n" +
-        "You requested to reset your password for " + appName + ".\n\n" +
+    const text = "Hi,\n\n" +
+        "You requested to reset your password for " + appName +
+        (user.get('username') ? (" (your username is '" + user.get('username') + "')") : "") + ".\n\n" +
         "" +
         "Click here to reset it:\n" + link;
-    let to = user.get("email") || user.get('username');
-    let subject =  'Password Reset for ' + appName;
+    const to = user.get("email") || user.get('username');
+    const subject =  'Password Reset for ' + appName;
     return { text, to, subject };
   }
 }
 
 // Mark this private
 function updateUserPassword(userId, password, config) {
-  return rest.update(config, Auth.master(config), '_User', userId, {
+  return rest.update(config, Auth.master(config), '_User', { objectId: userId }, {
     password: password
   });
+}
+
+function buildEmailLink(destination, username, token, config) {
+  const usernameAndToken = `token=${token}&username=${username}`
+
+  if (config.parseFrameURL) {
+    const destinationWithoutHost = destination.replace(config.publicServerURL, '');
+
+    return `${config.parseFrameURL}?link=${encodeURIComponent(destinationWithoutHost)}&${usernameAndToken}`;
+  } else {
+    return `${destination}?${usernameAndToken}`;
+  }
 }
 
 export default UserController;

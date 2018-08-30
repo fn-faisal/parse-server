@@ -5,6 +5,7 @@ var SchemaController = require('./Controllers/SchemaController');
 var Parse = require('parse/node').Parse;
 const triggers = require('./triggers');
 
+const AlwaysSelectedKeys = ['objectId', 'createdAt', 'updatedAt'];
 // restOptions can include:
 //   skip
 //   limit
@@ -28,7 +29,7 @@ function RestQuery(config, auth, className, restWhere = {}, restOptions = {}, cl
     if (this.className == '_Session') {
       if (!this.findOptions.acl) {
         throw new Parse.Error(Parse.Error.INVALID_SESSION_TOKEN,
-                              'This session token is invalid.');
+          'This session token is invalid.');
       }
       this.restWhere = {
         '$and': [this.restWhere, {
@@ -52,57 +53,90 @@ function RestQuery(config, auth, className, restWhere = {}, restOptions = {}, cl
   // this.include = [['foo'], ['foo', 'baz'], ['foo', 'bar']]
   this.include = [];
 
+  // If we have keys, we probably want to force some includes (n-1 level)
+  // See issue: https://github.com/parse-community/parse-server/issues/3185
+  if (restOptions.hasOwnProperty('keys')) {
+    const keysForInclude = restOptions.keys.split(',').filter((key) => {
+      // At least 2 components
+      return key.split(".").length > 1;
+    }).map((key) => {
+      // Slice the last component (a.b.c -> a.b)
+      // Otherwise we'll include one level too much.
+      return key.slice(0, key.lastIndexOf("."));
+    }).join(',');
+
+    // Concat the possibly present include string with the one from the keys
+    // Dedup / sorting is handle in 'include' case.
+    if (keysForInclude.length > 0) {
+      if (!restOptions.include || restOptions.include.length == 0) {
+        restOptions.include = keysForInclude;
+      } else {
+        restOptions.include += "," + keysForInclude;
+      }
+    }
+  }
+
   for (var option in restOptions) {
     switch(option) {
-    case 'keys':
-      this.keys = new Set(restOptions.keys.split(','));
-        // Add the default
-      this.keys.add('objectId');
-      this.keys.add('createdAt');
-      this.keys.add('updatedAt');
+    case 'keys': {
+      const keys = restOptions.keys.split(',').concat(AlwaysSelectedKeys);
+      this.keys = Array.from(new Set(keys));
       break;
+    }
     case 'count':
       this.doCount = true;
       break;
+    case 'distinct':
+    case 'pipeline':
     case 'skip':
     case 'limit':
+    case 'readPreference':
       this.findOptions[option] = restOptions[option];
       break;
     case 'order':
       var fields = restOptions.order.split(',');
-      var sortMap = {};
-      for (var field of fields) {
-        if (field[0] == '-') {
+      this.findOptions.sort = fields.reduce((sortMap, field) => {
+        field = field.trim();
+        if (field === '$score') {
+          sortMap.score = {$meta: 'textScore'};
+        } else if (field[0] == '-') {
           sortMap[field.slice(1)] = -1;
         } else {
           sortMap[field] = 1;
         }
-      }
-      this.findOptions.sort = sortMap;
+        return sortMap;
+      }, {});
       break;
-    case 'include':
-      var paths = restOptions.include.split(',');
-      var pathSet = {};
-      for (var path of paths) {
-        // Add all prefixes with a .-split to pathSet
-        var parts = path.split('.');
-        for (var len = 1; len <= parts.length; len++) {
-          pathSet[parts.slice(0, len).join('.')] = true;
-        }
-      }
-      this.include = Object.keys(pathSet).sort((a, b) => {
-        return a.length - b.length;
-      }).map((s) => {
+    case 'include': {
+      const paths = restOptions.include.split(',');
+      // Load the existing includes (from keys)
+      const pathSet = paths.reduce((memo, path) => {
+        // Split each paths on . (a.b.c -> [a,b,c])
+        // reduce to create all paths
+        // ([a,b,c] -> {a: true, 'a.b': true, 'a.b.c': true})
+        return path.split('.').reduce((memo, path, index, parts) => {
+          memo[parts.slice(0, index + 1).join('.')] = true;
+          return memo;
+        }, memo);
+      }, {});
+
+      this.include = Object.keys(pathSet).map((s) => {
         return s.split('.');
+      }).sort((a, b) => {
+        return a.length - b.length; // Sort by number of components
       });
       break;
+    }
     case 'redirectClassNameForKey':
       this.redirectKey = restOptions.redirectClassNameForKey;
       this.redirectClassName = null;
       break;
+    case 'includeReadPreference':
+    case 'subqueryReadPreference':
+      break;
     default:
       throw new Parse.Error(Parse.Error.INVALID_JSON,
-                            'bad option: ' + option);
+        'bad option: ' + option);
     }
   }
 }
@@ -143,6 +177,8 @@ RestQuery.prototype.buildRestWhere = function() {
     return this.replaceInQuery();
   }).then(() => {
     return this.replaceNotInQuery();
+  }).then(() => {
+    return this.replaceEquality();
   });
 }
 
@@ -167,8 +203,8 @@ RestQuery.prototype.redirectClassNameForKey = function() {
   }
 
   // We need to change the class name based on the schema
-  return this.config.database.redirectClassNameForKey(
-    this.className, this.redirectKey).then((newClassName) => {
+  return this.config.database.redirectClassNameForKey(this.className, this.redirectKey)
+    .then((newClassName) => {
       this.className = newClassName;
       this.redirectClassName = newClassName;
     });
@@ -183,7 +219,7 @@ RestQuery.prototype.validateClientClassCreation = function() {
       .then(hasClass => {
         if (hasClass !== true) {
           throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN,
-                                'This user is not allowed to access ' +
+            'This user is not allowed to access ' +
                                 'non-existent class: ' + this.className);
         }
       });
@@ -223,12 +259,18 @@ RestQuery.prototype.replaceInQuery = function() {
   var inQueryValue = inQueryObject['$inQuery'];
   if (!inQueryValue.where || !inQueryValue.className) {
     throw new Parse.Error(Parse.Error.INVALID_QUERY,
-                          'improper usage of $inQuery');
+      'improper usage of $inQuery');
   }
 
-  let additionalOptions = {
-    redirectClassNameForKey: inQueryValue.redirectClassNameForKey
+  const additionalOptions = {
+    redirectClassNameForKey: inQueryValue.redirectClassNameForKey,
+    keys: 'objectId'
   };
+
+  if (this.restOptions.subqueryReadPreference) {
+    additionalOptions.readPreference = this.restOptions.subqueryReadPreference;
+    additionalOptions.subqueryReadPreference = this.restOptions.subqueryReadPreference;
+  }
 
   var subquery = new RestQuery(
     this.config, this.auth, inQueryValue.className,
@@ -271,12 +313,18 @@ RestQuery.prototype.replaceNotInQuery = function() {
   var notInQueryValue = notInQueryObject['$notInQuery'];
   if (!notInQueryValue.where || !notInQueryValue.className) {
     throw new Parse.Error(Parse.Error.INVALID_QUERY,
-                          'improper usage of $notInQuery');
+      'improper usage of $notInQuery');
   }
 
-  let additionalOptions = {
-    redirectClassNameForKey: notInQueryValue.redirectClassNameForKey
+  const additionalOptions = {
+    redirectClassNameForKey: notInQueryValue.redirectClassNameForKey,
+    keys: 'objectId'
   };
+
+  if (this.restOptions.subqueryReadPreference) {
+    additionalOptions.readPreference = this.restOptions.subqueryReadPreference;
+    additionalOptions.subqueryReadPreference = this.restOptions.subqueryReadPreference;
+  }
 
   var subquery = new RestQuery(
     this.config, this.auth, notInQueryValue.className,
@@ -291,7 +339,7 @@ RestQuery.prototype.replaceNotInQuery = function() {
 const transformSelect = (selectObject, key ,objects) => {
   var values = [];
   for (var result of objects) {
-    values.push(result[key]);
+    values.push(key.split('.').reduce((o,i)=>o[i], result));
   }
   delete selectObject['$select'];
   if (Array.isArray(selectObject['$in'])) {
@@ -321,12 +369,18 @@ RestQuery.prototype.replaceSelect = function() {
       !selectValue.query.className ||
       Object.keys(selectValue).length !== 2) {
     throw new Parse.Error(Parse.Error.INVALID_QUERY,
-                          'improper usage of $select');
+      'improper usage of $select');
   }
 
-  let additionalOptions = {
-    redirectClassNameForKey: selectValue.query.redirectClassNameForKey
+  const additionalOptions = {
+    redirectClassNameForKey: selectValue.query.redirectClassNameForKey,
+    keys: selectValue.key
   };
+
+  if (this.restOptions.subqueryReadPreference) {
+    additionalOptions.readPreference = this.restOptions.subqueryReadPreference;
+    additionalOptions.subqueryReadPreference = this.restOptions.subqueryReadPreference;
+  }
 
   var subquery = new RestQuery(
     this.config, this.auth, selectValue.query.className,
@@ -341,7 +395,7 @@ RestQuery.prototype.replaceSelect = function() {
 const transformDontSelect = (dontSelectObject, key, objects) => {
   var values = [];
   for (var result of objects) {
-    values.push(result[key]);
+    values.push(key.split('.').reduce((o,i)=>o[i], result));
   }
   delete dontSelectObject['$dontSelect'];
   if (Array.isArray(dontSelectObject['$nin'])) {
@@ -370,11 +424,17 @@ RestQuery.prototype.replaceDontSelect = function() {
       !dontSelectValue.query.className ||
       Object.keys(dontSelectValue).length !== 2) {
     throw new Parse.Error(Parse.Error.INVALID_QUERY,
-                          'improper usage of $dontSelect');
+      'improper usage of $dontSelect');
   }
-  let additionalOptions = {
-    redirectClassNameForKey: dontSelectValue.query.redirectClassNameForKey
+  const additionalOptions = {
+    redirectClassNameForKey: dontSelectValue.query.redirectClassNameForKey,
+    keys: dontSelectValue.key
   };
+
+  if (this.restOptions.subqueryReadPreference) {
+    additionalOptions.readPreference = this.restOptions.subqueryReadPreference;
+    additionalOptions.subqueryReadPreference = this.restOptions.subqueryReadPreference;
+  }
 
   var subquery = new RestQuery(
     this.config, this.auth, dontSelectValue.query.className,
@@ -386,6 +446,65 @@ RestQuery.prototype.replaceDontSelect = function() {
   })
 };
 
+const cleanResultOfSensitiveUserInfo = function (result, auth, config) {
+  delete result.password;
+
+  if (auth.isMaster || (auth.user && auth.user.id === result.objectId)) {
+    return;
+  }
+
+  for (const field of config.userSensitiveFields) {
+    delete result[field];
+  }
+};
+
+const cleanResultAuthData = function (result) {
+  if (result.authData) {
+    Object.keys(result.authData).forEach((provider) => {
+      if (result.authData[provider] === null) {
+        delete result.authData[provider];
+      }
+    });
+
+    if (Object.keys(result.authData).length == 0) {
+      delete result.authData;
+    }
+  }
+};
+
+const replaceEqualityConstraint = (constraint) => {
+  if (typeof constraint !== 'object') {
+    return constraint;
+  }
+  const equalToObject = {};
+  let hasDirectConstraint = false;
+  let hasOperatorConstraint = false;
+  for (const key in constraint) {
+    if (key.indexOf('$') !== 0) {
+      hasDirectConstraint = true;
+      equalToObject[key] = constraint[key];
+    } else {
+      hasOperatorConstraint = true;
+    }
+  }
+  if (hasDirectConstraint && hasOperatorConstraint) {
+    constraint['$eq'] = equalToObject;
+    Object.keys(equalToObject).forEach((key) => {
+      delete constraint[key];
+    });
+  }
+  return constraint;
+}
+
+RestQuery.prototype.replaceEquality = function() {
+  if (typeof this.restWhere !== 'object') {
+    return;
+  }
+  for (const key in this.restWhere) {
+    this.restWhere[key] = replaceEqualityConstraint(this.restWhere[key]);
+  }
+}
+
 // Returns a promise for whether it was successful.
 // Populates this.response with an object that only has 'results'.
 RestQuery.prototype.runFind = function(options = {}) {
@@ -393,31 +512,21 @@ RestQuery.prototype.runFind = function(options = {}) {
     this.response = {results: []};
     return Promise.resolve();
   }
-  let findOptions = Object.assign({}, this.findOptions);
+  const findOptions = Object.assign({}, this.findOptions);
   if (this.keys) {
-    findOptions.keys = Array.from(this.keys).map((key) => {
+    findOptions.keys = this.keys.map((key) => {
       return key.split('.')[0];
     });
   }
   if (options.op) {
     findOptions.op = options.op;
   }
-  return this.config.database.find(
-    this.className, this.restWhere, findOptions).then((results) => {
+  return this.config.database.find(this.className, this.restWhere, findOptions)
+    .then((results) => {
       if (this.className === '_User') {
         for (var result of results) {
-          delete result.password;
-
-          if (result.authData) {
-            Object.keys(result.authData).forEach((provider) => {
-              if (result.authData[provider] === null) {
-                delete result.authData[provider];
-              }
-            });
-            if (Object.keys(result.authData).length == 0) {
-              delete result.authData;
-            }
-          }
+          cleanResultOfSensitiveUserInfo(result, this.auth, this.config);
+          cleanResultAuthData(result);
         }
       }
 
@@ -441,8 +550,8 @@ RestQuery.prototype.runCount = function() {
   this.findOptions.count = true;
   delete this.findOptions.skip;
   delete this.findOptions.limit;
-  return this.config.database.find(
-    this.className, this.restWhere, this.findOptions).then((c) => {
+  return this.config.database.find(this.className, this.restWhere, this.findOptions)
+    .then((c) => {
       this.response.count = c;
     });
 };
@@ -454,7 +563,7 @@ RestQuery.prototype.handleInclude = function() {
   }
 
   var pathResponse = includePath(this.config, this.auth,
-                                 this.response, this.include[0], this.restOptions);
+    this.response, this.include[0], this.restOptions);
   if (pathResponse.then) {
     return pathResponse.then((newResponse) => {
       this.response = newResponse;
@@ -479,6 +588,10 @@ RestQuery.prototype.runAfterFindTrigger = function() {
   if (!hasAfterFindHook) {
     return Promise.resolve();
   }
+  // Skip Aggregate and Distinct Queries
+  if (this.findOptions.pipeline || this.findOptions.distinct) {
+    return Promise.resolve();
+  }
   // Run afterFind trigger and set the new results
   return triggers.maybeRunAfterFindTrigger(triggers.Types.afterFind, this.auth, this.className,this.response.results, this.config).then((results) => {
     this.response.results = results;
@@ -493,25 +606,25 @@ function includePath(config, auth, response, path, restOptions = {}) {
   if (pointers.length == 0) {
     return response;
   }
-  let pointersHash = {};
+  const pointersHash = {};
   for (var pointer of pointers) {
     if (!pointer) {
       continue;
     }
-    let className = pointer.className;
+    const className = pointer.className;
     // only include the good pointers
     if (className) {
       pointersHash[className] = pointersHash[className] || new Set();
       pointersHash[className].add(pointer.objectId);
     }
   }
-  let includeRestOptions = {};
+  const includeRestOptions = {};
   if (restOptions.keys) {
-    let keys = new Set(restOptions.keys.split(','));
-    let keySet = Array.from(keys).reduce((set, key) => {
-      let keyPath = key.split('.');
-      let i=0;
-      for (i; i<path.length; i++) {
+    const keys = new Set(restOptions.keys.split(','));
+    const keySet = Array.from(keys).reduce((set, key) => {
+      const keyPath = key.split('.');
+      let i = 0;
+      for (i; i < path.length; i++) {
         if (path[i] != keyPath[i]) {
           return set;
         }
@@ -526,8 +639,19 @@ function includePath(config, auth, response, path, restOptions = {}) {
     }
   }
 
-  let queryPromises = Object.keys(pointersHash).map((className) => {
-    let where = {'objectId': {'$in': Array.from(pointersHash[className])}};
+  if (restOptions.includeReadPreference) {
+    includeRestOptions.readPreference = restOptions.includeReadPreference;
+    includeRestOptions.includeReadPreference = restOptions.includeReadPreference;
+  }
+
+  const queryPromises = Object.keys(pointersHash).map((className) => {
+    const objectIds = Array.from(pointersHash[className]);
+    let where;
+    if (objectIds.length === 1) {
+      where = {'objectId': objectIds[0]};
+    } else {
+      where = {'objectId': {'$in': objectIds}};
+    }
     var query = new RestQuery(config, auth, className, where, includeRestOptions);
     return query.execute({op: 'get'}).then((results) => {
       results.className = className;
@@ -602,7 +726,7 @@ function findPointers(object, path) {
 function replacePointers(object, path, replace) {
   if (object instanceof Array) {
     return object.map((obj) => replacePointers(obj, path, replace))
-             .filter((obj) => typeof obj !== 'undefined');
+      .filter((obj) => typeof obj !== 'undefined');
   }
 
   if (typeof object !== 'object' || !object) {
@@ -640,7 +764,7 @@ function findObjectWithKey(root, key) {
   }
   if (root instanceof Array) {
     for (var item of root) {
-      let answer = findObjectWithKey(item, key);
+      const answer = findObjectWithKey(item, key);
       if (answer) {
         return answer;
       }
@@ -650,7 +774,7 @@ function findObjectWithKey(root, key) {
     return root;
   }
   for (var subkey in root) {
-    let answer = findObjectWithKey(root[subkey], key);
+    const answer = findObjectWithKey(root[subkey], key);
     if (answer) {
       return answer;
     }

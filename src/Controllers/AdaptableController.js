@@ -30,7 +30,7 @@ export class AdaptableController {
   }
 
   get config() {
-    return new Config(this.appId);
+    return Config.get(this.appId);
   }
 
   expectedAdapterType() {
@@ -38,18 +38,22 @@ export class AdaptableController {
   }
 
   validateAdapter(adapter) {
+    AdaptableController.validateAdapter(adapter, this);
+  }
+
+  static validateAdapter(adapter, self, ExpectedType) {
     if (!adapter) {
-      throw new Error(this.constructor.name+" requires an adapter");
+      throw new Error(this.constructor.name + " requires an adapter");
     }
 
-    let Type = this.expectedAdapterType();
+    const Type = ExpectedType || self.expectedAdapterType();
     // Allow skipping for testing
     if (!Type) {
       return;
     }
 
     // Makes sure the prototype matches
-    let mismatches = Object.getOwnPropertyNames(Type.prototype).reduce( (obj, key) => {
+    const mismatches = Object.getOwnPropertyNames(Type.prototype).reduce((obj, key) => {
       const adapterType = typeof adapter[key];
       const expectedType = typeof Type.prototype[key];
       if (adapterType !== expectedType) {

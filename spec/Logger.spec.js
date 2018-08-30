@@ -1,5 +1,5 @@
-var logging = require('../src/Adapters/Logger/WinstonLogger');
-var winston = require('winston');
+const logging = require('../src/Adapters/Logger/WinstonLogger');
+const winston = require('winston');
 
 class TestTransport extends winston.Transport {
   log(level, msg, meta, callback) {
@@ -23,8 +23,8 @@ describe('Logger', () => {
 
   it('should have files transports', (done) => {
     reconfigureServer().then(() => {
-      let transports = logging.logger.transports;
-      let transportKeys = Object.keys(transports);
+      const transports = logging.logger.transports;
+      const transportKeys = Object.keys(transports);
       expect(transportKeys.length).toBe(3);
       done();
     });
@@ -34,8 +34,8 @@ describe('Logger', () => {
     reconfigureServer({
       logsFolder: null
     }).then(() => {
-      let transports = logging.logger.transports;
-      let transportKeys = Object.keys(transports);
+      const transports = logging.logger.transports;
+      const transportKeys = Object.keys(transports);
       expect(transportKeys.length).toBe(1);
       done();
     });
@@ -51,8 +51,8 @@ describe('Logger', () => {
       spyOn(process.stdout, 'write');
       logging.logger.info('hi', {key: 'value'});
       expect(process.stdout.write).toHaveBeenCalled();
-      var firstLog = process.stdout.write.calls.first().args[0];
-      expect(firstLog).toEqual(JSON.stringify({key: 'value', level: 'info', message: 'hi' })+'\n');
+      const firstLog = process.stdout.write.calls.first().args[0];
+      expect(firstLog).toEqual(JSON.stringify({key: 'value', level: 'info', message: 'hi' }) + '\n');
       return reconfigureServer({
         jsonLogs: false
       });

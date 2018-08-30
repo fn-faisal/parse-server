@@ -2,13 +2,19 @@
 import program from './commander';
 
 function logStartupOptions(options) {
-  for (let key in options) {
+  for (const key in options) {
     let value = options[key];
     if (key == "masterKey") {
       value = "***REDACTED***";
     }
     if (typeof value === 'object') {
-      value = JSON.stringify(value);
+      try {
+        value = JSON.stringify(value)
+      } catch(e) {
+        if (value && value.constructor && value.constructor.name) {
+          value = value.constructor.name;
+        }
+      }
     }
     /* eslint-disable no-console */
     console.log(`${key}: ${value}`);
@@ -31,7 +37,7 @@ export default function({
   }
   program.parse(process.argv, process.env);
 
-  let options = program.getOptions();
+  const options = program.getOptions();
   start(program, options, function() {
     logStartupOptions(options);
   });
