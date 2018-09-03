@@ -42,13 +42,7 @@ export class PushWorker {
     }
   }
 
-  unsubscribe(): void {
-    if (this.subscriber) {
-      this.subscriber.unsubscribe(this.channel);
-    }
-  }
-
-  run({ body, query, pushStatus, applicationId, UTCOffset }: any): Promise {
+  run({ body, query, pushStatus, applicationId, UTCOffset }: any): Promise<any> {
     const config = Config.get(applicationId);
     const auth = master(config);
     const where = utils.applyDeviceTokenExists(query.where);
@@ -59,12 +53,10 @@ export class PushWorker {
         return pushStatus.trackSent(results);
       }
       return this.sendToAdapter(body, results, pushStatus, config, UTCOffset);
-    }, err => {
-      throw err;
     });
   }
 
-  sendToAdapter(body: any, installations: any, pushStatus: any, config: Config, UTCOffset: any): Promise {
+  sendToAdapter(body: any, installations: any, pushStatus: any, config: Config, UTCOffset: any): Promise<any> {
     // Check if we have locales in the push body
     const locales = utils.getLocalesFromPush(body);
     if (locales.length > 0) {
@@ -102,7 +94,7 @@ export class PushWorker {
     return Promise.all(promises);
   }
 
-  getAndRun(workItem: any): Promise {
+  getAndRun(workItem: any): Promise<any> {
     var _this = this;
     if (!_this.subscriber.run) {
       return _this.run(workItem);
