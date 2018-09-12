@@ -135,6 +135,12 @@ module.exports.ParseServerOptions = {
     "env": "PARSE_SERVER_FILE_KEY",
     "help": "Key for your files"
   },
+  "preserveFileName": {
+    "env": "PARSE_SERVER_PRESERVE_FILE_NAME",
+    "help": "Enable (or disable) the addition of a unique hash to the file names",
+    "action": parsers.booleanParser,
+    "default": false
+  },
   "userSensitiveFields": {
     "env": "PARSE_SERVER_USER_SENSITIVE_FIELDS",
     "help": "Personally identifiable information fields in the user table the should be removed for non-authorized users.",
@@ -259,6 +265,12 @@ module.exports.ParseServerOptions = {
   "enableSingleSchemaCache": {
     "env": "PARSE_SERVER_ENABLE_SINGLE_SCHEMA_CACHE",
     "help": "Use a single schema cache shared across requests. Reduces number of queries made to _SCHEMA. Defaults to false, i.e. unique schema cache per request.",
+    "action": parsers.booleanParser,
+    "default": false
+  },
+  "enableExpressErrorHandler": {
+    "env": "PARSE_SERVER_ENABLE_EXPRESS_ERROR_HANDLER",
+    "help": "Enables the default express error handler for all errors",
     "action": parsers.booleanParser,
     "default": false
   },

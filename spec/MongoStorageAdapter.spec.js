@@ -1,6 +1,6 @@
 'use strict';
 
-import MongoStorageAdapter from '../src/Adapters/Storage/Mongo/MongoStorageAdapter';
+const MongoStorageAdapter = require('../lib/Adapters/Storage/Mongo/MongoStorageAdapter').default;
 const { MongoClient } = require('mongodb');
 const databaseURI = 'mongodb://localhost:27017/parseServerMongoAdapterTestDatabase';
 
@@ -61,7 +61,7 @@ describe_only_db('mongo')('MongoStorageAdapter', () => {
   });
 
   it('find succeeds when query is within maxTimeMS', (done) => {
-    const maxTimeMS = 250;
+    const maxTimeMS = 2500;
     const adapter = new MongoStorageAdapter({
       uri: databaseURI,
       mongoOptions: { maxTimeMS },
@@ -90,8 +90,8 @@ describe_only_db('mongo')('MongoStorageAdapter', () => {
         },
         (err) => {
           expect(err.name).toEqual('MongoError');
-          expect(err.code).toEqual(50);
-          expect(err.message).toEqual('operation exceeded time limit');
+          expect(err.code).toEqual(96);
+          expect(err.message).toContain('operation exceeded time limit');
           done();
         }
       );

@@ -232,6 +232,7 @@ The client keys used with Parse are no longer necessary with Parse Server. If yo
 #### Advanced options
 
 * `fileKey` - For migrated apps, this is necessary to provide access to files already hosted on Parse.
+* `preserveFileName` - Set to true to remove the unique hash added to the file names. Defaults to false.
 * `allowClientClassCreation` - Set to false to disable client class creation. Defaults to true.
 * `enableAnonymousUsers` - Set to false to disable anonymous users. Defaults to true.
 * `auth` - Used to configure support for [3rd party authentication](http://docs.parseplatform.org/parse-server/guide/#oauth-and-3rd-party-authentication).
@@ -393,15 +394,23 @@ If you believe you've found an issue with Parse Server, make sure these boxes ar
 
 # Want to ride the bleeding edge?
 
-The `latest` branch in this repository is automatically maintained to be the last
-commit to `master` to pass all tests, in the same form found on npm. It is
-recommend to use builds deployed npm for many reasons, but if you want to use
+It is recommend to use builds deployed npm for many reasons, but if you want to use
 the latest not-yet-released version of parse-server, you can do so by depending
 directly on this branch:
 
 ```
-npm install parseplatform/parse-server.git#latest
+npm install parse-community/parse-server.git#master
 ```
+
+## Experimenting
+
+You can also use your own forks, and work in progress branches by specifying them:
+
+```
+npm install github:myUsername/parse-server#my-awesome-feature
+```
+
+And don't forget, if you plan to deploy it remotely, you should run `npm install` with the `--save` option.
 
 # Contributing
 
