@@ -4,6 +4,7 @@ import RestWrite              from '../RestWrite';
 import { master }             from '../Auth';
 import { pushStatusHandler }  from '../StatusHandler';
 import { applyDeviceTokenExists } from '../Push/utils';
+import { logger }               from '../logger';
 
 export class PushController {
 
@@ -58,6 +59,8 @@ export class PushController {
       badgeUpdate = () => {
         // Build a real RestQuery so we can use it in RestWrite
         const restQuery = new RestQuery(config, master(config), '_Installation', updateWhere);
+        // change $exists for $ne null for better performance
+        if (restQuery.restWhere && restQuery.restWhere.deviceToken && restQuery.restWhere.deviceToken['$exists']) restQuery.restWhere.deviceToken = {$ne: null}
         return restQuery.buildRestWhere().then(() => {
           const write = new RestWrite(config, master(config), '_Installation', restQuery.restWhere, restUpdate);
           write.runOptions.many = true;
@@ -71,6 +74,11 @@ export class PushController {
     }).then(() => {
       onPushStatusSaved(pushStatus.objectId);
       return badgeUpdate();
+    }).catch(err => {
+      // add this to ignore badge update errors as default
+      if (config.stopOnBadgeUpdateError) throw err
+      logger.info(`Badge update error will be ignored for push status ${pushStatus.objectId}`)
+      logger.error(err)
     }).then(() => {
       // Update audience lastUsed and timesUsed
       if (body.audience_id) {
