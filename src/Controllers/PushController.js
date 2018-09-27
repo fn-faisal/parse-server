@@ -73,8 +73,12 @@ export class PushController {
       return pushStatus.setInitial(body, where);
     }).then(() => {
       onPushStatusSaved(pushStatus.objectId);
-      if (config.stopOnBadgeUpdateError) return badgeUpdate();
+      return badgeUpdate();
+    }).catch(err => {
+      // add this to ignore badge update errors as default
+      if (config.stopOnBadgeUpdateError) throw err;
       logger.info(`Badge update error will be ignored for push status ${pushStatus.objectId}`);
+      logger.info(err && err.stack && err.stack.toString() || err && err.message || err.toString());
       return Promise.resolve();
     }).then(() => {
       // Update audience lastUsed and timesUsed
