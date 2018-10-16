@@ -53,4 +53,5 @@ node_modules
 # Folder created by FileSystemAdapter
 /files
 
+# Merge files
 *.orig

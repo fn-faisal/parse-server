@@ -5,6 +5,18 @@
 'use strict';
 
 const Parse = require('parse/node');
+const rp = require('request-promise');
+
+const masterKeyHeaders = {
+  'X-Parse-Application-Id': 'test',
+  'X-Parse-Rest-API-Key': 'test',
+  'X-Parse-Master-Key': 'test'
+}
+
+const masterKeyOptions = {
+  headers: masterKeyHeaders,
+  json: true
+}
 
 describe('Parse.Query testing', () => {
   it("basic query", function(done) {
@@ -497,6 +509,354 @@ describe('Parse.Query testing', () => {
     });
   });
 
+  it('containsAllStartingWith should match all strings that starts with string', (done) => {
+
+    const object = new Parse.Object('Object');
+    object.set('strings', ['the', 'brown', 'lazy', 'fox', 'jumps']);
+    const object2 = new Parse.Object('Object');
+    object2.set('strings', ['the', 'brown', 'fox', 'jumps']);
+    const object3 = new Parse.Object('Object');
+    object3.set('strings', ['over', 'the', 'lazy', 'dog']);
+
+    const objectList = [object, object2, object3];
+
+    Parse.Object.saveAll(objectList).then((results) => {
+      equal(objectList.length, results.length);
+
+      return require('request-promise').get({
+        url: Parse.serverURL + "/classes/Object",
+        json: {
+          where: {
+            strings: {
+              $all: [
+                {$regex: '\^\\Qthe\\E'},
+                {$regex: '\^\\Qfox\\E'},
+                {$regex: '\^\\Qlazy\\E'}
+              ]
+            }
+          }
+        },
+        headers: {
+          'X-Parse-Application-Id': Parse.applicationId,
+          'X-Parse-Javascript-Key': Parse.javaScriptKey
+        }
+      })
+        .then(function (results) {
+          equal(results.results.length, 1);
+          arrayContains(results.results, object);
+
+          return require('request-promise').get({
+            url: Parse.serverURL + "/classes/Object",
+            json: {
+              where: {
+                strings: {
+                  $all: [
+                    {$regex: '\^\\Qthe\\E'},
+                    {$regex: '\^\\Qlazy\\E'}
+                  ]
+                }
+              }
+            },
+            headers: {
+              'X-Parse-Application-Id': Parse.applicationId,
+              'X-Parse-Javascript-Key': Parse.javaScriptKey
+            }
+          });
+        })
+        .then(function (results) {
+          equal(results.results.length, 2);
+          arrayContains(results.results, object);
+          arrayContains(results.results, object3);
+
+          return require('request-promise').get({
+            url: Parse.serverURL + "/classes/Object",
+            json: {
+              where: {
+                strings: {
+                  $all: [
+                    {$regex: '\^\\Qhe\\E'},
+                    {$regex: '\^\\Qlazy\\E'}
+                  ]
+                }
+              }
+            },
+            headers: {
+              'X-Parse-Application-Id': Parse.applicationId,
+              'X-Parse-Javascript-Key': Parse.javaScriptKey
+            }
+          });
+        })
+        .then(function (results) {
+          equal(results.results.length, 0);
+
+          done();
+        });
+    });
+  });
+
+  it('containsAllStartingWith values must be all of type starting with regex', (done) => {
+
+    const object = new Parse.Object('Object');
+    object.set('strings', ['the', 'brown', 'lazy', 'fox', 'jumps']);
+
+    object.save().then(() => {
+      equal(object.isNew(), false);
+
+      return require('request-promise').get({
+        url: Parse.serverURL + "/classes/Object",
+        json: {
+          where: {
+            strings: {
+              $all: [
+                {$regex: '\^\\Qthe\\E'},
+                {$regex: '\^\\Qlazy\\E'},
+                {$regex: '\^\\Qfox\\E'},
+                {$unknown: /unknown/}
+              ]
+            }
+          }
+        },
+        headers: {
+          'X-Parse-Application-Id': Parse.applicationId,
+          'X-Parse-Javascript-Key': Parse.javaScriptKey
+        }
+      });
+    })
+      .then(function () {
+      }, function () {
+        done();
+      });
+  });
+
+  it('containsAllStartingWith empty array values should return empty results', (done) => {
+
+    const object = new Parse.Object('Object');
+    object.set('strings', ['the', 'brown', 'lazy', 'fox', 'jumps']);
+
+    object.save().then(() => {
+      equal(object.isNew(), false);
+
+      return require('request-promise').get({
+        url: Parse.serverURL + "/classes/Object",
+        json: {
+          where: {
+            strings: {
+              $all: []
+            }
+          }
+        },
+        headers: {
+          'X-Parse-Application-Id': Parse.applicationId,
+          'X-Parse-Javascript-Key': Parse.javaScriptKey
+        }
+      });
+    })
+      .then(function (results) {
+        equal(results.results.length, 0);
+        done();
+      }, function () {
+      });
+  });
+
+  it('containsAllStartingWith single empty value returns empty results', (done) => {
+
+    const object = new Parse.Object('Object');
+    object.set('strings', ['the', 'brown', 'lazy', 'fox', 'jumps']);
+
+    object.save().then(() => {
+      equal(object.isNew(), false);
+
+      return require('request-promise').get({
+        url: Parse.serverURL + "/classes/Object",
+        json: {
+          where: {
+            strings: {
+              $all: [ {} ]
+            }
+          }
+        },
+        headers: {
+          'X-Parse-Application-Id': Parse.applicationId,
+          'X-Parse-Javascript-Key': Parse.javaScriptKey
+        }
+      });
+    })
+      .then(function (results) {
+        equal(results.results.length, 0);
+        done();
+      }, function () {
+      });
+  });
+
+  it('containsAllStartingWith single regex value should return corresponding matching results', (done) => {
+
+    const object = new Parse.Object('Object');
+    object.set('strings', ['the', 'brown', 'lazy', 'fox', 'jumps']);
+    const object2 = new Parse.Object('Object');
+    object2.set('strings', ['the', 'brown', 'fox', 'jumps']);
+    const object3 = new Parse.Object('Object');
+    object3.set('strings', ['over', 'the', 'lazy', 'dog']);
+
+    const objectList = [object, object2, object3];
+
+    Parse.Object.saveAll(objectList).then((results) => {
+      equal(objectList.length, results.length);
+
+      return require('request-promise').get({
+        url: Parse.serverURL + "/classes/Object",
+        json: {
+          where: {
+            strings: {
+              $all: [ {$regex: '\^\\Qlazy\\E'} ]
+            }
+          }
+        },
+        headers: {
+          'X-Parse-Application-Id': Parse.applicationId,
+          'X-Parse-Javascript-Key': Parse.javaScriptKey
+        }
+      });
+    })
+      .then(function (results) {
+        equal(results.results.length, 2);
+        done();
+      }, function () {
+      });
+  });
+
+  it('containsAllStartingWith single invalid regex returns empty results', (done) => {
+
+    const object = new Parse.Object('Object');
+    object.set('strings', ['the', 'brown', 'lazy', 'fox', 'jumps']);
+
+    object.save().then(() => {
+      equal(object.isNew(), false);
+
+      return require('request-promise').get({
+        url: Parse.serverURL + "/classes/Object",
+        json: {
+          where: {
+            strings: {
+              $all: [ {$unknown: '\^\\Qlazy\\E'} ]
+            }
+          }
+        },
+        headers: {
+          'X-Parse-Application-Id': Parse.applicationId,
+          'X-Parse-Javascript-Key': Parse.javaScriptKey
+        }
+      });
+    })
+      .then(function (results) {
+        equal(results.results.length, 0);
+        done();
+      }, function () {
+      });
+  });
+
+  it('containedBy pointer array', (done) => {
+    const objects = Array.from(Array(10).keys()).map((idx) => {
+      const obj = new Parse.Object('Object');
+      obj.set('key', idx);
+      return obj;
+    });
+
+    const parent = new Parse.Object('Parent');
+    const parent2 = new Parse.Object('Parent');
+    const parent3 = new Parse.Object('Parent');
+
+    Parse.Object.saveAll(objects).then(() => {
+      // [0, 1, 2]
+      parent.set('objects', objects.slice(0, 3));
+
+      const shift = objects.shift();
+      // [2, 0]
+      parent2.set('objects', [objects[1], shift]);
+
+      // [1, 2, 3, 4]
+      parent3.set('objects', objects.slice(1, 4));
+
+      return Parse.Object.saveAll([parent, parent2, parent3]);
+    }).then(() => {
+      // [1, 2, 3, 4, 5, 6, 7, 8, 9]
+      const pointers =  objects.map(object => object.toPointer());
+
+      // Return all Parent where all parent.objects are contained in objects
+      return rp.get({
+        url: Parse.serverURL + "/classes/Parent",
+        json: {
+          where: {
+            objects: {
+              $containedBy: pointers
+            }
+          }
+        },
+        headers: {
+          'X-Parse-Application-Id': Parse.applicationId,
+          'X-Parse-Javascript-Key': Parse.javaScriptKey
+        }
+      });
+    }).then((results) => {
+      expect(results.results[0].objectId).not.toBeUndefined();
+      expect(results.results[0].objectId).toBe(parent3.id);
+      expect(results.results.length).toBe(1);
+      done();
+    });
+  });
+
+
+  it('containedBy number array', (done) => {
+    const options = Object.assign({}, masterKeyOptions, {
+      body: {
+        where: { numbers: { $containedBy: [1, 2, 3, 4, 5, 6, 7, 8, 9] } },
+      }
+    });
+    const obj1 = new TestObject({ numbers: [0, 1, 2] });
+    const obj2 = new TestObject({ numbers: [2, 0] });
+    const obj3 = new TestObject({ numbers: [1, 2, 3, 4] });
+    Parse.Object.saveAll([obj1, obj2, obj3]).then(() => {
+      return rp.get(Parse.serverURL + "/classes/TestObject", options);
+    }).then((results) => {
+      expect(results.results[0].objectId).not.toBeUndefined();
+      expect(results.results[0].objectId).toBe(obj3.id);
+      expect(results.results.length).toBe(1);
+      done();
+    });
+  });
+
+  it('containedBy empty array', (done) => {
+    const options = Object.assign({}, masterKeyOptions, {
+      body: {
+        where: { numbers: { $containedBy: [] } },
+      }
+    });
+    const obj1 = new TestObject({ numbers: [0, 1, 2] });
+    const obj2 = new TestObject({ numbers: [2, 0] });
+    const obj3 = new TestObject({ numbers: [1, 2, 3, 4] });
+    Parse.Object.saveAll([obj1, obj2, obj3]).then(() => {
+      return rp.get(Parse.serverURL + "/classes/TestObject", options);
+    }).then((results) => {
+      expect(results.results.length).toBe(0);
+      done();
+    });
+  });
+
+  it('containedBy invalid query', (done) => {
+    const options = Object.assign({}, masterKeyOptions, {
+      body: {
+        where: { objects: { $containedBy: 1234 } },
+      }
+    });
+    const obj = new TestObject();
+    obj.save().then(() => {
+      return rp.get(Parse.serverURL + "/classes/TestObject", options);
+    }).then(done.fail).catch((error) => {
+      equal(error.error.code, Parse.Error.INVALID_JSON);
+      equal(error.error.error, 'bad $containedBy: should be an array');
+      done();
+    });
+  });
+
   const BoxedNumber = Parse.Object.extend({
     className: "BoxedNumber"
   });
@@ -570,6 +930,38 @@ describe('Parse.Query testing', () => {
       });
   });
 
+  it("lessThan zero queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.lessThan('number', 0);
+      return query.find();
+    }).then((results) => {
+      equal(results.length, 3);
+      done();
+    });
+  });
+
+  it("lessThanOrEqualTo zero queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.lessThanOrEqualTo('number', 0);
+      return query.find();
+    }).then((results) => {
+      equal(results.length, 4);
+      done();
+    });
+  });
+
   it("greaterThan queries", function(done) {
     const makeBoxedNumber = function(i) {
       return new BoxedNumber({ number: i });
@@ -604,6 +996,38 @@ describe('Parse.Query testing', () => {
           }
         });
       });
+  });
+
+  it("greaterThan zero queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.greaterThan('number', 0);
+      return query.find();
+    }).then((results) => {
+      equal(results.length, 1);
+      done();
+    });
+  });
+
+  it("greaterThanOrEqualTo zero queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.greaterThanOrEqualTo('number', 0);
+      return query.find();
+    }).then((results) => {
+      equal(results.length, 2);
+      done();
+    });
   });
 
   it("lessThanOrEqualTo greaterThanOrEqualTo queries", function(done) {
@@ -662,6 +1086,101 @@ describe('Parse.Query testing', () => {
       });
   });
 
+  it("notEqualTo zero queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.notEqualTo('number', 0);
+      return query.find();
+    }).then((results) => {
+      equal(results.length, 4);
+      done();
+    });
+  });
+
+  it("equalTo zero queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.equalTo('number', 0);
+      return query.find();
+    }).then((results) => {
+      equal(results.length, 1);
+      done();
+    });
+  });
+
+  it("number equalTo boolean queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.equalTo('number', false);
+      return query.find();
+    }).then((results) => {
+      equal(results.length, 0);
+      done();
+    });
+  });
+
+  it("equalTo false queries", (done) => {
+    const obj1 = new TestObject({ field: false });
+    const obj2 = new TestObject({ field: true });
+    Parse.Object.saveAll([obj1, obj2]).then(() => {
+      const query = new Parse.Query(TestObject);
+      query.equalTo('field', false);
+      return query.find();
+    }).then((results) => {
+      equal(results.length, 1);
+      done();
+    });
+  });
+
+  it("where $eq false queries (rest)", (done) => {
+    const options = Object.assign({}, masterKeyOptions, {
+      body: {
+        where: { field: { $eq: false } },
+      }
+    });
+    const obj1 = new TestObject({ field: false });
+    const obj2 = new TestObject({ field: true });
+    Parse.Object.saveAll([obj1, obj2]).then(() => {
+      rp.get(Parse.serverURL + '/classes/TestObject', options)
+        .then((resp) => {
+          equal(resp.results.length, 1);
+          done();
+        });
+    })
+  });
+
+  it("where $eq null queries (rest)", (done) => {
+    const options = Object.assign({}, masterKeyOptions, {
+      body: {
+        where: { field: { $eq: null } },
+      }
+    });
+    const obj1 = new TestObject({ field: false });
+    const obj2 = new TestObject({ field: null });
+    Parse.Object.saveAll([obj1, obj2]).then(() => {
+      rp.get(Parse.serverURL + '/classes/TestObject', options)
+        .then((resp) => {
+          equal(resp.results.length, 1);
+          done();
+        });
+    })
+  });
+
   it("containedIn queries", function(done) {
     const makeBoxedNumber = function(i) {
       return new BoxedNumber({ number: i });
@@ -678,6 +1197,40 @@ describe('Parse.Query testing', () => {
           }
         });
       });
+  });
+
+  it("containedIn false queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.containedIn('number', false);
+      return query.find();
+    }).then(done.fail).catch((error) => {
+      equal(error.code, Parse.Error.INVALID_JSON);
+      equal(error.message, 'bad $in value');
+      done();
+    });
+  });
+
+  it("notContainedIn false queries", (done) => {
+    const makeBoxedNumber = (i) => {
+      return new BoxedNumber({ number: i });
+    };
+    const numbers = [-3, -2, -1, 0, 1];
+    const boxedNumbers = numbers.map(makeBoxedNumber);
+    Parse.Object.saveAll(boxedNumbers).then(() => {
+      const query = new Parse.Query(BoxedNumber);
+      query.notContainedIn('number', false);
+      return query.find();
+    }).then(done.fail).catch((error) => {
+      equal(error.code, Parse.Error.INVALID_JSON);
+      equal(error.message, 'bad $nin value');
+      done();
+    });
   });
 
   it("notContainedIn queries", function(done) {
@@ -983,6 +1536,90 @@ describe('Parse.Query testing', () => {
         }
       }));
     });
+  });
+
+  it('can order on an object string field', function (done) {
+    const testSet = [
+      { sortField: { value: "Z" } },
+      { sortField: { value: "A" } },
+      { sortField: { value: "M" } },
+    ];
+
+    const objects = testSet.map(e => new Parse.Object('Test', e));
+    Parse.Object.saveAll(objects)
+      .then(() => new Parse.Query('Test').addDescending('sortField.value').first())
+      .then((result) => {
+        expect(result.get('sortField').value).toBe("Z");
+        return new Parse.Query('Test').addAscending('sortField.value').first()
+      })
+      .then((result) => {
+        expect(result.get('sortField').value).toBe("A");
+        done();
+      })
+      .catch(done.fail);
+  });
+
+  it('can order on an object string field (level 2)', function (done) {
+    const testSet = [
+      { sortField: { value: { field: "Z" } } },
+      { sortField: { value: { field: "A" } } },
+      { sortField: { value: { field: "M" } } },
+    ];
+
+    const objects = testSet.map(e => new Parse.Object('Test', e));
+    Parse.Object.saveAll(objects)
+      .then(() => new Parse.Query('Test').addDescending('sortField.value.field').first())
+      .then((result) => {
+        expect(result.get('sortField').value.field).toBe("Z");
+        return new Parse.Query('Test').addAscending('sortField.value.field').first()
+      })
+      .then((result) => {
+        expect(result.get('sortField').value.field).toBe("A");
+        done();
+      })
+      .catch(done.fail);
+  });
+
+  it('can order on an object number field', function (done) {
+    const testSet = [
+      { sortField: { value: 10 } },
+      { sortField: { value: 1 } },
+      { sortField: { value: 5 } },
+    ];
+
+    const objects = testSet.map(e => new Parse.Object('Test', e));
+    Parse.Object.saveAll(objects)
+      .then(() => new Parse.Query('Test').addDescending('sortField.value').first())
+      .then((result) => {
+        expect(result.get('sortField').value).toBe(10);
+        return new Parse.Query('Test').addAscending('sortField.value').first()
+      })
+      .then((result) => {
+        expect(result.get('sortField').value).toBe(1);
+        done();
+      })
+      .catch(done.fail);
+  });
+
+  it('can order on an object number field (level 2)', function (done) {
+    const testSet = [
+      { sortField: { value: { field: 10 } } },
+      { sortField: { value: { field: 1 } } },
+      { sortField: { value: { field: 5 } } },
+    ];
+
+    const objects = testSet.map(e => new Parse.Object('Test', e));
+    Parse.Object.saveAll(objects)
+      .then(() => new Parse.Query('Test').addDescending('sortField.value.field').first())
+      .then((result) => {
+        expect(result.get('sortField').value.field).toBe(10);
+        return new Parse.Query('Test').addAscending('sortField.value.field').first()
+      })
+      .then((result) => {
+        expect(result.get('sortField').value.field).toBe(1);
+        done();
+      })
+      .catch(done.fail);
   });
 
   it("order by ascending number then descending string", function(done) {
@@ -1387,7 +2024,7 @@ describe('Parse.Query testing', () => {
     query.find(expectError(Parse.Error.INVALID_QUERY, done));
   });
 
-  it("Use a regex that requires all modifiers", function(done) {
+  xit("Use a regex that requires all modifiers", function(done) {
     const thing = new TestObject();
     thing.set("myString", "PArSe\nCom");
     Parse.Object.saveAll([thing], function() {
@@ -2010,6 +2647,63 @@ describe('Parse.Query testing', () => {
       done();
     }, (error) => {
       jfail(error);
+      done();
+    });
+  });
+
+  it('$nor valid query', (done) => {
+    const objects = Array.from(Array(10).keys()).map((rating) => {
+      return new TestObject({ 'rating': rating });
+    });
+
+    const highValue = 5;
+    const lowValue = 3;
+    const options = Object.assign({}, masterKeyOptions, {
+      body: {
+        where: {
+          $nor: [
+            { rating : { $gt : highValue } },
+            { rating : { $lte : lowValue } },
+          ]
+        },
+      }
+    });
+
+    Parse.Object.saveAll(objects).then(() => {
+      return rp.get(Parse.serverURL + "/classes/TestObject", options);
+    }).then((results) => {
+      expect(results.results.length).toBe(highValue - lowValue);
+      expect(results.results.every(res => res.rating > lowValue && res.rating <= highValue)).toBe(true);
+      done();
+    });
+  });
+
+  it('$nor invalid query - empty array', (done) => {
+    const options = Object.assign({}, masterKeyOptions, {
+      body: {
+        where: { $nor: [] },
+      }
+    });
+    const obj = new TestObject();
+    obj.save().then(() => {
+      return rp.get(Parse.serverURL + "/classes/TestObject", options);
+    }).then(done.fail).catch((error) => {
+      equal(error.error.code, Parse.Error.INVALID_QUERY);
+      done();
+    });
+  });
+
+  it('$nor invalid query - wrong type', (done) => {
+    const options = Object.assign({}, masterKeyOptions, {
+      body: {
+        where: { $nor: 1337 },
+      }
+    });
+    const obj = new TestObject();
+    obj.save().then(() => {
+      return rp.get(Parse.serverURL + "/classes/TestObject", options);
+    }).then(done.fail).catch((error) => {
+      equal(error.error.code, Parse.Error.INVALID_QUERY);
       done();
     });
   });
@@ -2990,6 +3684,75 @@ describe('Parse.Query testing', () => {
     });
   });
 
+  it('includeAll', (done) => {
+    const child1 = new TestObject({ foo: 'bar', name: 'ac' });
+    const child2 = new TestObject({ foo: 'baz', name: 'flo' });
+    const child3 = new TestObject({ foo: 'bad', name: 'mo' });
+    const parent = new Container({ child1, child2, child3 });
+    Parse.Object.saveAll([parent, child1, child2, child3]).then(() => {
+      const options = Object.assign({}, masterKeyOptions, {
+        body: {
+          where: { objectId: parent.id },
+          includeAll: true,
+        }
+      });
+      return rp.get(Parse.serverURL + "/classes/Container", options);
+    }).then((resp) => {
+      const result = resp.results[0];
+      equal(result.child1.foo, 'bar');
+      equal(result.child2.foo, 'baz');
+      equal(result.child3.foo, 'bad');
+      equal(result.child1.name, 'ac');
+      equal(result.child2.name, 'flo');
+      equal(result.child3.name, 'mo');
+      done();
+    });
+  });
+
+  it('select nested keys 2 level includeAll', (done) => {
+    const Foobar = new Parse.Object('Foobar');
+    const BarBaz = new Parse.Object('Barbaz');
+    const Bazoo = new Parse.Object('Bazoo');
+    const Tang = new Parse.Object('Tang');
+
+    Bazoo.set('some', 'thing');
+    Bazoo.set('otherSome', 'value');
+    Bazoo.save().then(() => {
+      BarBaz.set('key', 'value');
+      BarBaz.set('otherKey', 'value');
+      BarBaz.set('bazoo', Bazoo);
+      return BarBaz.save();
+    }).then(() => {
+      Tang.set('clan', 'wu');
+      return Tang.save();
+    }).then(() => {
+      Foobar.set('foo', 'bar');
+      Foobar.set('fizz', 'buzz');
+      Foobar.set('barBaz', BarBaz);
+      Foobar.set('group', Tang);
+      return Foobar.save();
+    }).then((savedFoobar) => {
+      const options = Object.assign({}, masterKeyOptions, {
+        body: {
+          where: { objectId: savedFoobar.id },
+          includeAll: true,
+          keys: 'fizz,barBaz.key,barBaz.bazoo.some',
+        }
+      });
+      return rp.get(Parse.serverURL + "/classes/Foobar", options);
+    }).then((resp) => {
+      const result = resp.results[0];
+      equal(result.group.clan, 'wu');
+      equal(result.foo, undefined);
+      equal(result.fizz, 'buzz');
+      equal(result.barBaz.key, 'value');
+      equal(result.barBaz.otherKey, undefined);
+      equal(result.barBaz.bazoo.some, 'thing');
+      equal(result.barBaz.bazoo.otherSome, undefined);
+      done();
+    })
+  });
+
   it('select nested keys 2 level without include (issue #3185)', function(done) {
     const Foobar = new Parse.Object('Foobar');
     const BarBaz = new Parse.Object('Barbaz');
@@ -3291,4 +4054,106 @@ describe('Parse.Query testing', () => {
       })
   });
 
+  it('withJSON supports geoWithin.centerSphere', (done) => {
+    const inbound = new Parse.GeoPoint(1.5, 1.5);
+    const onbound = new Parse.GeoPoint(10, 10);
+    const outbound = new Parse.GeoPoint(20, 20);
+    const obj1 = new Parse.Object('TestObject', {location: inbound});
+    const obj2 = new Parse.Object('TestObject', {location: onbound});
+    const obj3 = new Parse.Object('TestObject', {location: outbound});
+    const center = new Parse.GeoPoint(0, 0);
+    const distanceInKilometers = 1569 + 1; // 1569km is the approximate distance between {0, 0} and {10, 10}.
+    Parse.Object.saveAll([obj1, obj2, obj3]).then(() => {
+      const q = new Parse.Query(TestObject);
+      const jsonQ = q.toJSON();
+      jsonQ.where.location = {
+        '$geoWithin': {
+          '$centerSphere': [
+            center,
+            distanceInKilometers / 6371.0
+          ]
+        }
+      };
+      q.withJSON(jsonQ);
+      return q.find();
+    }).then(results => {
+      equal(results.length, 2);
+      const q = new Parse.Query(TestObject);
+      const jsonQ = q.toJSON();
+      jsonQ.where.location = {
+        '$geoWithin': {
+          '$centerSphere': [
+            [0, 0],
+            distanceInKilometers / 6371.0
+          ]
+        }
+      };
+      q.withJSON(jsonQ);
+      return q.find();
+    }).then(results => {
+      equal(results.length, 2);
+      done();
+    }).catch(error => {
+      fail(error);
+      done();
+    });
+  });
+
+  it('withJSON with geoWithin.centerSphere fails without parameters', (done) => {
+    const q = new Parse.Query(TestObject);
+    const jsonQ = q.toJSON();
+    jsonQ.where.location = {
+      '$geoWithin': {
+        '$centerSphere': [
+        ]
+      }
+    };
+    q.withJSON(jsonQ);
+    q.find(expectError(Parse.Error.INVALID_JSON, done));
+  });
+
+  it('withJSON with geoWithin.centerSphere fails with invalid distance', (done) => {
+    const q = new Parse.Query(TestObject);
+    const jsonQ = q.toJSON();
+    jsonQ.where.location = {
+      '$geoWithin': {
+        '$centerSphere': [
+          [0, 0],
+          'invalid_distance'
+        ]
+      }
+    };
+    q.withJSON(jsonQ);
+    q.find(expectError(Parse.Error.INVALID_JSON, done));
+  });
+
+  it('withJSON with geoWithin.centerSphere fails with invalid coordinate', (done) => {
+    const q = new Parse.Query(TestObject);
+    const jsonQ = q.toJSON();
+    jsonQ.where.location = {
+      '$geoWithin': {
+        '$centerSphere': [
+          [-190,-190],
+          1
+        ]
+      }
+    };
+    q.withJSON(jsonQ);
+    q.find(expectError(undefined, done));
+  });
+
+  it('withJSON with geoWithin.centerSphere fails with invalid geo point', (done) => {
+    const q = new Parse.Query(TestObject);
+    const jsonQ = q.toJSON();
+    jsonQ.where.location = {
+      '$geoWithin': {
+        '$centerSphere': [
+          {'longitude': 0, 'dummytude': 0},
+          1
+        ]
+      }
+    };
+    q.withJSON(jsonQ);
+    q.find(expectError(undefined, done));
+  });
 });

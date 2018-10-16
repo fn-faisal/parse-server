@@ -4,6 +4,7 @@ import RestWrite              from '../RestWrite';
 import { master }             from '../Auth';
 import { pushStatusHandler }  from '../StatusHandler';
 import { applyDeviceTokenExists } from '../Push/utils';
+import { logger }               from '../logger';
 
 export class PushController {
 
@@ -44,10 +45,13 @@ export class PushController {
       let restUpdate = {};
       if (typeof badge == 'string' && badge.toLowerCase() === 'increment') {
         restUpdate = { badge: { __op: 'Increment', amount: 1 } }
+      } else if (typeof badge == 'object' && typeof badge.__op == 'string' &&
+                 badge.__op.toLowerCase() == 'increment' && Number(badge.amount)) {
+        restUpdate = { badge: { __op: 'Increment', amount: badge.amount } }
       } else if (Number(badge)) {
         restUpdate = { badge: badge }
       } else {
-        throw "Invalid value for badge, expected number or 'Increment'";
+        throw "Invalid value for badge, expected number or 'Increment' or {increment: number}";
       }
 
       // Force filtering on only valid device tokens
@@ -55,6 +59,8 @@ export class PushController {
       badgeUpdate = () => {
         // Build a real RestQuery so we can use it in RestWrite
         const restQuery = new RestQuery(config, master(config), '_Installation', updateWhere);
+        // change $exists for $ne null for better performance
+        if (restQuery.restWhere && restQuery.restWhere.deviceToken && restQuery.restWhere.deviceToken['$exists']) restQuery.restWhere.deviceToken = {$ne: null}
         return restQuery.buildRestWhere().then(() => {
           const write = new RestWrite(config, master(config), '_Installation', restQuery.restWhere, restUpdate);
           write.runOptions.many = true;
@@ -67,7 +73,13 @@ export class PushController {
       return pushStatus.setInitial(body, where);
     }).then(() => {
       onPushStatusSaved(pushStatus.objectId);
-      return badgeUpdate();
+      return badgeUpdate().catch(err => {
+        // add this to ignore badge update errors as default
+        if (config.stopOnBadgeUpdateError) throw err;
+        logger.info(`Badge update error will be ignored for push status ${pushStatus.objectId}`);
+        logger.info(err && err.stack && err.stack.toString() || err && err.message || err.toString());
+        return Promise.resolve();
+      });
     }).then(() => {
       // Update audience lastUsed and timesUsed
       if (body.audience_id) {

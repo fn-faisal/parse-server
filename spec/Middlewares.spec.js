@@ -1,5 +1,5 @@
-const middlewares = require('../src/middlewares');
-const AppCache = require('../src/cache').AppCache;
+const middlewares = require('../lib/middlewares');
+const AppCache = require('../lib/cache').AppCache;
 
 describe('middlewares', () => {
 
@@ -289,5 +289,17 @@ describe('middlewares', () => {
     fakeReq.headers['x-forwarded-for'] = '';
     middlewares.handleParseHeaders(fakeReq, fakeRes);
     expect(fakeRes.status).toHaveBeenCalledWith(403);
+  });
+
+  it('should properly expose the headers', () => {
+    const headers = {};
+    const res = {
+      header: (key, value) => {
+        headers[key] = value
+      }
+    };
+    middlewares.allowCrossDomain({}, res, () => {});
+    expect(Object.keys(headers).length).toBe(4);
+    expect(headers['Access-Control-Expose-Headers']).toBe('X-Parse-Job-Status-Id, X-Parse-Push-Status-Id');
   });
 });
