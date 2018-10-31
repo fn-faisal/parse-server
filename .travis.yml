@@ -48,6 +48,7 @@ before_script:
 - silent=1 mongodb-runner --start
 - greenkeeper-lockfile-update
 script:
+- npm run lint
 - npm run coverage
 after_script:
 - greenkeeper-lockfile-upload
@@ -61,8 +62,16 @@ jobs:
       env: 
       before_script: skip
       after_script: skip
-      script: skip
+      script: 
+        - ./release_docs.sh
       deploy:
+        - provider: script
+          skip_cleanup: true
+          script: ./resources/npm-git.sh
+          on:
+           branch:
+            - master
+            - 3.x
         - provider: npm
           skip_cleanup: true
           email:

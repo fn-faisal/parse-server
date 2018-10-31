@@ -1,16 +1,16 @@
 // @flow
 // @flow-disable-next
-import deepcopy               from 'deepcopy';
-import AdaptableController    from '../Controllers/AdaptableController';
-import { master }             from '../Auth';
-import Config                 from '../Config';
-import { PushAdapter }        from '../Adapters/Push/PushAdapter';
-import rest                   from '../rest';
-import { pushStatusHandler }  from '../StatusHandler';
-import * as utils             from './utils';
-import { ParseMessageQueue }  from '../ParseMessageQueue';
-import { PushQueue }          from './PushQueue';
-import logger                 from '../logger';
+import deepcopy from 'deepcopy';
+import AdaptableController from '../Controllers/AdaptableController';
+import { master } from '../Auth';
+import Config from '../Config';
+import { PushAdapter } from '../Adapters/Push/PushAdapter';
+import rest from '../rest';
+import { pushStatusHandler } from '../StatusHandler';
+import * as utils from './utils';
+import { ParseMessageQueue } from '../ParseMessageQueue';
+import { PushQueue } from './PushQueue';
+import logger from '../logger';
 
 function groupByBadge(installations) {
   return installations.reduce((map, installation) => {
@@ -22,7 +22,7 @@ function groupByBadge(installations) {
 }
 
 export class PushWorker {
-  subscriber: any;
+  subscriber: ?any;
   adapter: any;
   channel: string;
 
@@ -37,26 +37,34 @@ export class PushWorker {
       subscriber.subscribe(this.channel);
       subscriber.on('message', (channel, messageStr) => {
         const workItem = JSON.parse(messageStr);
-        this.getAndRun(workItem);
+        this.run(workItem);
       });
     }
   }
 
-  run({ body, query, pushStatus, applicationId, UTCOffset }: any): Promise<any> {
+  run({ body, query, pushStatus, applicationId, UTCOffset }: any): Promise<*> {
     const config = Config.get(applicationId);
     const auth = master(config);
     const where = utils.applyDeviceTokenExists(query.where);
     delete query.where;
     pushStatus = pushStatusHandler(config, pushStatus.objectId);
-    return rest.find(config, auth, '_Installation', where, query).then(({results}) => {
-      if (results.length == 0) {
-        return pushStatus.trackSent(results);
-      }
-      return this.sendToAdapter(body, results, pushStatus, config, UTCOffset);
-    });
+    return rest
+      .find(config, auth, '_Installation', where, query)
+      .then(({ results }) => {
+        if (results.length == 0) {
+          return;
+        }
+        return this.sendToAdapter(body, results, pushStatus, config, UTCOffset);
+      });
   }
 
-  sendToAdapter(body: any, installations: any, pushStatus: any, config: Config, UTCOffset: any): Promise<any> {
+  sendToAdapter(
+    body: any,
+    installations: any[],
+    pushStatus: any,
+    config: Config,
+    UTCOffset: ?any
+  ): Promise<*> {
     // Check if we have locales in the push body
     const locales = utils.getLocalesFromPush(body);
     if (locales.length > 0) {
@@ -64,51 +72,50 @@ export class PushWorker {
       const bodiesPerLocales = utils.bodiesPerLocales(body, locales);
 
       // Group installations on the specified locales (en, fr, default etc...)
-      const grouppedInstallations = utils.groupByLocaleIdentifier(installations, locales);
-      const promises = Object.keys(grouppedInstallations).map((locale) => {
+      const grouppedInstallations = utils.groupByLocaleIdentifier(
+        installations,
+        locales
+      );
+      const promises = Object.keys(grouppedInstallations).map(locale => {
         const installations = grouppedInstallations[locale];
         const body = bodiesPerLocales[locale];
-        return this.sendToAdapter(body, installations, pushStatus, config, UTCOffset);
+        return this.sendToAdapter(
+          body,
+          installations,
+          pushStatus,
+          config,
+          UTCOffset
+        );
       });
       return Promise.all(promises);
     }
 
     if (!utils.isPushIncrementing(body)) {
       logger.verbose(`Sending push to ${installations.length}`);
-      return this.adapter.send(body, installations, pushStatus.objectId).then((results) => {
-        return pushStatus.trackSent(results, UTCOffset, undefined, installations.length - results.length)
-          .then(() => results);
-      });
+      return this.adapter
+        .send(body, installations, pushStatus.objectId)
+        .then(results => {
+          return pushStatus.trackSent(results, UTCOffset).then(() => results);
+        });
     }
 
     // Collect the badges to reduce the # of calls
     const badgeInstallationsMap = groupByBadge(installations);
 
     // Map the on the badges count and return the send result
-    const promises = Object.keys(badgeInstallationsMap).map((badge) => {
+    const promises = Object.keys(badgeInstallationsMap).map(badge => {
       const payload = deepcopy(body);
       payload.data.badge = parseInt(badge);
       const installations = badgeInstallationsMap[badge];
-      return this.sendToAdapter(payload, installations, pushStatus, config, UTCOffset);
+      return this.sendToAdapter(
+        payload,
+        installations,
+        pushStatus,
+        config,
+        UTCOffset
+      );
     });
     return Promise.all(promises);
-  }
-
-  getAndRun(workItem: any): Promise<any> {
-    var _this = this;
-    if (!_this.subscriber.run) {
-      return _this.run(workItem);
-    }
-    return _this.subscriber.run(workItem).then(function (gotItem) {
-      if (gotItem) {
-        return _this.run(gotItem)
-          .then(function () {
-            return _this.getAndRun(gotItem)
-          })
-      } else {
-        return Promise.resolve();
-      }
-    });
   }
 }
 
