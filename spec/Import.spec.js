@@ -1,47 +1,41 @@
 const Parse = require("parse/node");
-const request = require('request');
+const request = require('../lib/request');
 
-describe('Import routers', () => {
+fdescribe('Import routers', () => {
   it('import objects from file with array', (done) => {
     const headers = {
       'Content-Type': 'multipart/form-data',
       'X-Parse-Application-Id': 'test',
       'X-Parse-Master-Key': 'test'
     };
-    request.post(
-      {
-        headers: headers,
-        url: 'http://localhost:8378/1/import_data/TestObject',
-        formData: {
-          importFile: {
-            value: Buffer.from(JSON.stringify({
-              rows:[
-                { column1: 'row1Column1', column2: 'row1Column2' },
-                { column1: 'row2Column1', column2: 'row2Column2' }
-              ]
-            })),
-            options: {
-              filename: 'TestObject.json'
-            }
+    request({
+      headers: headers,
+      url: 'import_data/TestObject',
+      body: {
+        importFile: {
+          value: Buffer.from(JSON.stringify({
+            rows:[
+              { column1: 'row1Column1', column2: 'row1Column2' },
+              { column1: 'row2Column1', column2: 'row2Column2' }
+            ]
+          })),
+          options: {
+            filename: 'TestObject.json'
           }
         }
-      },
-      (err) => {
-
-        expect(err).toBe(null);
-
-        const query = new Parse.Query('TestObject');
-        query.ascending('column1');
-        query.find({}).then((results) => {
-          expect(results.length).toEqual(2);
-          expect(results[0].get('column1')).toEqual('row1Column1');
-          expect(results[0].get('column2')).toEqual('row1Column2');
-          expect(results[1].get('column1')).toEqual('row2Column1');
-          expect(results[1].get('column2')).toEqual('row2Column2');
-          done();
-        });
       }
-    );
+    }).then(() => {
+      const query = new Parse.Query('TestObject');
+      query.ascending('column1');
+      query.find({}).then((results) => {
+        expect(results.length).toEqual(2);
+        expect(results[0].get('column1')).toEqual('row1Column1');
+        expect(results[0].get('column2')).toEqual('row1Column2');
+        expect(results[1].get('column1')).toEqual('row2Column1');
+        expect(results[1].get('column2')).toEqual('row2Column2');
+        done();
+      });
+    }).catch(done);
   });
 
   it('import objects from file with results field', (done) => {
@@ -50,38 +44,34 @@ describe('Import routers', () => {
       'X-Parse-Application-Id': 'test',
       'X-Parse-Master-Key': 'test'
     };
-    request.post(
-      {
-        headers: headers,
-        url: 'http://localhost:8378/1/import_data/TestObject',
-        formData: {
-          importFile: {
-            value: Buffer.from(JSON.stringify({
-              results: [
-                {column1: 'row1Column1', column2: 'row1Column2'},
-                {column1: 'row2Column1', column2: 'row2Column2'}
-              ]
-            })),
-            options: {
-              filename: 'TestObject.json'
-            }
+    request({
+      headers: headers,
+      url: 'import_data/TestObject',
+      body: {
+        importFile: {
+          value: Buffer.from(JSON.stringify({
+            results: [
+              {column1: 'row1Column1', column2: 'row1Column2'},
+              {column1: 'row2Column1', column2: 'row2Column2'}
+            ]
+          })),
+          options: {
+            filename: 'TestObject.json'
           }
         }
-      },
-      (err) => {
-        expect(err).toBe(null);
-        const query = new Parse.Query('TestObject');
-        query.ascending('column1');
-        query.find().then((results) => {
-          expect(results.length).toEqual(2);
-          expect(results[0].get('column1')).toEqual('row1Column1');
-          expect(results[0].get('column2')).toEqual('row1Column2');
-          expect(results[1].get('column1')).toEqual('row2Column1');
-          expect(results[1].get('column2')).toEqual('row2Column2');
-          done();
-        });
       }
-    );
+    }).then(() => {
+      const query = new Parse.Query('TestObject');
+      query.ascending('column1');
+      query.find().then((results) => {
+        expect(results.length).toEqual(2);
+        expect(results[0].get('column1')).toEqual('row1Column1');
+        expect(results[0].get('column2')).toEqual('row1Column2');
+        expect(results[1].get('column1')).toEqual('row2Column1');
+        expect(results[1].get('column2')).toEqual('row2Column2');
+        done();
+      });
+    }).catch(done);
   });
 
   it('import objects with all data types', (done) => {
@@ -90,75 +80,71 @@ describe('Import routers', () => {
       'X-Parse-Application-Id': 'test',
       'X-Parse-Master-Key': 'test'
     };
-    request.post(
-      {
-        headers: headers,
-        url: 'http://localhost:8378/1/import_data/TestObject',
-        formData: {
-          importFile: {
-            value: Buffer.from(JSON.stringify({
-              results: [
-                {
-                  boolColumnTrue: true,
-                  boolColumnFalse: false,
-                  stringColumn: 'stringColumnValue',
-                  numberColumn: 100.1,
-                  dateColumn: {
-                    '__type': 'Date',
-                    'iso': '2016-10-30T12:03:56.848Z'
-                  },
-                  arrayColumn: [
-                    1,
-                    2,
-                    3
-                  ],
-                  objectColumn: {
-                    'key': 'value'
-                  },
-                  geoColumn: {
-                    '__type': 'GeoPoint',
-                    'latitude': 10,
-                    'longitude': -10
-                  },
-                  fileColumn: {
-                    '__type': 'File',
-                    'name': 'myfile.png'
-                  },
-                  pointerColumn: {
-                    '__type': 'Pointer',
-                    'className': '_User',
-                    'objectId': 'AAAAAAAAAA'
-                  }
+    request({
+      headers: headers,
+      url: 'import_data/TestObject',
+      body: {
+        importFile: {
+          value: Buffer.from(JSON.stringify({
+            results: [
+              {
+                boolColumnTrue: true,
+                boolColumnFalse: false,
+                stringColumn: 'stringColumnValue',
+                numberColumn: 100.1,
+                dateColumn: {
+                  '__type': 'Date',
+                  'iso': '2016-10-30T12:03:56.848Z'
+                },
+                arrayColumn: [
+                  1,
+                  2,
+                  3
+                ],
+                objectColumn: {
+                  'key': 'value'
+                },
+                geoColumn: {
+                  '__type': 'GeoPoint',
+                  'latitude': 10,
+                  'longitude': -10
+                },
+                fileColumn: {
+                  '__type': 'File',
+                  'name': 'myfile.png'
+                },
+                pointerColumn: {
+                  '__type': 'Pointer',
+                  'className': '_User',
+                  'objectId': 'AAAAAAAAAA'
                 }
-              ]
-            })),
-            options: {
-              filename: 'TestObject.json'
-            }
+              }
+            ]
+          })),
+          options: {
+            filename: 'TestObject.json'
           }
         }
-      },
-      (err) => {
-        expect(err).toBe(null);
-        const query = new Parse.Query('TestObject');
-        query.ascending('column1');
-        query.find().then((results) => {
-          expect(results.length).toEqual(1);
-          expect(results[0].get('boolColumnTrue')).toEqual(true);
-          expect(results[0].get('boolColumnFalse')).toEqual(false);
-          expect(results[0].get('stringColumn')).toEqual('stringColumnValue');
-          expect(results[0].get('numberColumn')).toEqual(100.1);
-          expect(results[0].get('dateColumn')).toEqual(new Date('2016-10-30T12:03:56.848Z'));
-          expect(results[0].get('arrayColumn')).toEqual([ 1, 2, 3 ]);
-          expect(results[0].get('objectColumn')).toEqual({ 'key': 'value' });
-          expect(results[0].get('geoColumn').latitude).toEqual(10);
-          expect(results[0].get('geoColumn').longitude).toEqual(-10);
-          expect(results[0].get('fileColumn').name()).toEqual('myfile.png');
-          expect(results[0].get('pointerColumn').id).toEqual('AAAAAAAAAA');
-          done();
-        });
       }
-    );
+    }).then(() => {
+      const query = new Parse.Query('TestObject');
+      query.ascending('column1');
+      query.find().then((results) => {
+        expect(results.length).toEqual(1);
+        expect(results[0].get('boolColumnTrue')).toEqual(true);
+        expect(results[0].get('boolColumnFalse')).toEqual(false);
+        expect(results[0].get('stringColumn')).toEqual('stringColumnValue');
+        expect(results[0].get('numberColumn')).toEqual(100.1);
+        expect(results[0].get('dateColumn')).toEqual(new Date('2016-10-30T12:03:56.848Z'));
+        expect(results[0].get('arrayColumn')).toEqual([ 1, 2, 3 ]);
+        expect(results[0].get('objectColumn')).toEqual({ 'key': 'value' });
+        expect(results[0].get('geoColumn').latitude).toEqual(10);
+        expect(results[0].get('geoColumn').longitude).toEqual(-10);
+        expect(results[0].get('fileColumn').name()).toEqual('myfile.png');
+        expect(results[0].get('pointerColumn').id).toEqual('AAAAAAAAAA');
+        done();
+      });
+    }).catch(done);
   });
 
   it('import objects with object id', (done) => {
@@ -167,46 +153,42 @@ describe('Import routers', () => {
       'X-Parse-Application-Id': 'test',
       'X-Parse-Master-Key': 'test'
     };
-    request.post(
-      {
-        headers: headers,
-        url: 'http://localhost:8378/1/import_data/TestObject',
-        formData: {
-          importFile: {
-            value: Buffer.from(JSON.stringify({
-              results: [
-                {
-                  'objectId': 'aaaaaaaaaa',
-                  'data': 'somedataa',
-                  'createdAt': '2016-07-25T19:45:33.195Z',
-                  'updatedAt': '2016-10-30T12:23:35.635Z'
-                },
-                {
-                  'objectId': 'bbbbbbbbbb',
-                  'data': 'somedatab',
-                  'createdAt': '2016-07-25T19:45:33.195Z',
-                  'updatedAt': '2016-10-30T12:23:35.635Z'
-                }
-              ]
-            })),
-            options: {
-              filename: 'TestObject.json'
-            }
+    request({
+      headers: headers,
+      url: 'import_data/TestObject',
+      body: {
+        importFile: {
+          value: Buffer.from(JSON.stringify({
+            results: [
+              {
+                'objectId': 'aaaaaaaaaa',
+                'data': 'somedataa',
+                'createdAt': '2016-07-25T19:45:33.195Z',
+                'updatedAt': '2016-10-30T12:23:35.635Z'
+              },
+              {
+                'objectId': 'bbbbbbbbbb',
+                'data': 'somedatab',
+                'createdAt': '2016-07-25T19:45:33.195Z',
+                'updatedAt': '2016-10-30T12:23:35.635Z'
+              }
+            ]
+          })),
+          options: {
+            filename: 'TestObject.json'
           }
         }
-      },
-      (err) => {
-        expect(err).toBe(null);
-        const query = new Parse.Query('TestObject');
-        query.ascending('data');
-        query.find().then((results) => {
-          expect(results.length).toEqual(2);
-          expect(results[0].id).toEqual('aaaaaaaaaa');
-          expect(results[1].id).toEqual('bbbbbbbbbb');
-          done();
-        });
       }
-    );
+    }).then(() => {
+      const query = new Parse.Query('TestObject');
+      query.ascending('data');
+      query.find().then((results) => {
+        expect(results.length).toEqual(2);
+        expect(results[0].id).toEqual('aaaaaaaaaa');
+        expect(results[1].id).toEqual('bbbbbbbbbb');
+        done();
+      });
+    }).catch(done);
   });
 
   it('update objects with existing object id', (done) => {
@@ -215,21 +197,39 @@ describe('Import routers', () => {
       'X-Parse-Application-Id': 'test',
       'X-Parse-Master-Key': 'test'
     };
-    request.post(
-      {
+    request({
+      headers: headers,
+      url: 'import_data/TestObject',
+      body: {
+        importFile: {
+          value: Buffer.from(JSON.stringify({
+            results: [
+              {
+                'objectId': 'aaaaaaaaaa',
+                'data': 'somedataa'
+              },
+              {
+                'objectId': 'bbbbbbbbbb',
+                'data': 'somedatab'
+              }
+            ]
+          })),
+          options: {
+            filename: 'TestObject.json'
+          }
+        }
+      }
+    }).then(() => {
+      request({
         headers: headers,
-        url: 'http://localhost:8378/1/import_data/TestObject',
-        formData: {
+        url: 'import_data/TestObject',
+        body: {
           importFile: {
             value: Buffer.from(JSON.stringify({
               results: [
                 {
                   'objectId': 'aaaaaaaaaa',
-                  'data': 'somedataa'
-                },
-                {
-                  'objectId': 'bbbbbbbbbb',
-                  'data': 'somedatab'
+                  'data': 'somedataa2'
                 }
               ]
             })),
@@ -238,45 +238,19 @@ describe('Import routers', () => {
             }
           }
         }
-      },
-      (err) => {
-        expect(err).toBe(null);
-        request.post(
-          {
-            headers: headers,
-            url: 'http://localhost:8378/1/import_data/TestObject',
-            formData: {
-              importFile: {
-                value: Buffer.from(JSON.stringify({
-                  results: [
-                    {
-                      'objectId': 'aaaaaaaaaa',
-                      'data': 'somedataa2'
-                    }
-                  ]
-                })),
-                options: {
-                  filename: 'TestObject.json'
-                }
-              }
-            }
-          },
-          (err) => {
-            expect(err).toBe(null);
-            const query = new Parse.Query('TestObject');
-            query.ascending('data');
-            query.find().then((results) => {
-              expect(results.length).toEqual(2);
-              expect(results[0].id).toEqual('aaaaaaaaaa');
-              expect(results[0].get('data')).toEqual('somedataa2');
-              expect(results[1].id).toEqual('bbbbbbbbbb');
-              expect(results[1].get('data')).toEqual('somedatab');
-              done();
-            });
-          }
-        );
-      }
-    );
+      }).then(() => {
+        const query = new Parse.Query('TestObject');
+        query.ascending('data');
+        query.find().then((results) => {
+          expect(results.length).toEqual(2);
+          expect(results[0].id).toEqual('aaaaaaaaaa');
+          expect(results[0].get('data')).toEqual('somedataa2');
+          expect(results[1].id).toEqual('bbbbbbbbbb');
+          expect(results[1].get('data')).toEqual('somedatab');
+          done();
+        });
+      });
+    }).catch(done);
   });
 
   it('send success import mail', (done) => {
@@ -305,30 +279,26 @@ describe('Import routers', () => {
         'X-Parse-Application-Id': 'test',
         'X-Parse-Master-Key': 'test'
       };
-      request.post(
-        {
-          headers: headers,
-          url: 'http://localhost:8378/1/import_data/TestObject',
-          formData: {
-            importFile: {
-              value: Buffer.from(JSON.stringify({
-                results: [
-                  {column1: 'row1Column1', column2: 'row1Column2'},
-                  {column1: 'row2Column1', column2: 'row2Column2'}
-                ],
-              })),
-              options: {
-                filename: 'TestObject.json'
-              }
-            },
-            feedbackEmail: 'my@email.com'
-          }
-        },
-        (err, response, body) => {
-          expect(err).toBe(null);
-          expect(JSON.parse(body).response).toEqual('We are importing your data. You will be notified by e-mail once it is completed.');
+      request({
+        headers: headers,
+        url: 'import_data/TestObject',
+        body: {
+          importFile: {
+            value: Buffer.from(JSON.stringify({
+              results: [
+                {column1: 'row1Column1', column2: 'row1Column2'},
+                {column1: 'row2Column1', column2: 'row2Column2'}
+              ],
+            })),
+            options: {
+              filename: 'TestObject.json'
+            }
+          },
+          feedbackEmail: 'my@email.com'
         }
-      );
+      }).then(res => {
+        expect(JSON.parse(res.body).response).toEqual('We are importing your data. You will be notified by e-mail once it is completed.');
+      }).catch(done);
     });
   });
 
@@ -357,35 +327,32 @@ describe('Import routers', () => {
       })
       .then((savedObj) => {
         ids.b = savedObj.id;
-        request.post(
-          {
-            headers: headers,
-            url: 'http://localhost:8378/1/import_relation_data/TestObjectDad/RelationObject',
-            formData: {
-              importFile: {
-                value: Buffer.from(JSON.stringify({
-                  results: [
-                    {
-                      'owningId': ids.a,
-                      'relatedId': ids.b
-                    }
-                  ]
-                })),
-                options: {
-                  filename: 'TestObject:RelationObject.json'
-                }
+        request({
+          headers: headers,
+          url: 'import_relation_data/TestObjectDad/RelationObject',
+          body: {
+            importFile: {
+              value: Buffer.from(JSON.stringify({
+                results: [
+                  {
+                    'owningId': ids.a,
+                    'relatedId': ids.b
+                  }
+                ]
+              })),
+              options: {
+                filename: 'TestObject:RelationObject.json'
               }
             }
-          },
-          (err) => {
-            expect(err).toBe(null);
-            object.relation('RelationObject').query().find().then((results) => {
-              expect(results.length).toEqual(1);
-              expect(results[0].id).toEqual(ids.b);
-              done();
-            });
           }
-        )
+        }).then(err => {
+          expect(err).toBe(null);
+          object.relation('RelationObject').query().find().then((results) => {
+            expect(results.length).toEqual(1);
+            expect(results[0].id).toEqual(ids.b);
+            done();
+          });
+        }).catch(done)
       });
   });
 
@@ -396,65 +363,58 @@ describe('Import routers', () => {
     Parse.Object.saveAll([object, relatedObject]).then(() => {
       object.relation('RelationObject').add(relatedObject);
       return object.save();
-    })
-      .then(() => {
-        object.set('Name', 'namea');
-        return object.save();
-      })
-      .then((savedObj) => {
-        ids.a = savedObj.id;
-        relatedObject.set('Name', 'nameb');
-        return relatedObject.save();
-      })
-      .then((savedObj) => {
-        ids.b = savedObj.id;
-        const emailAdapter = {
-          sendMail: ({text, to, subject}) => {
-            expect(text).toEqual('We have successfully imported your data to the class TestObjectDad, relation RelationObject.');
-            expect(to).toEqual('my@email.com');
-            expect(subject).toEqual('Import completed');
-            object.relation('RelationObject').query().find().then((results) => {
-              expect(results.length).toEqual(1);
-              expect(results[0].id).toEqual(ids.b);
-              done();
-            });
-          }
+    }).then(() => {
+      object.set('Name', 'namea');
+      return object.save();
+    }).then((savedObj) => {
+      ids.a = savedObj.id;
+      relatedObject.set('Name', 'nameb');
+      return relatedObject.save();
+    }).then((savedObj) => {
+      ids.b = savedObj.id;
+      const emailAdapter = {
+        sendMail: ({text, to, subject}) => {
+          expect(text).toEqual('We have successfully imported your data to the class TestObjectDad, relation RelationObject.');
+          expect(to).toEqual('my@email.com');
+          expect(subject).toEqual('Import completed');
+          object.relation('RelationObject').query().find().then((results) => {
+            expect(results.length).toEqual(1);
+            expect(results[0].id).toEqual(ids.b);
+            done();
+          });
         }
-        reconfigureServer({
-          emailAdapter: emailAdapter
-        }).then(() => {
-          const headers = {
-            'Content-Type': 'multipart/form-data',
-            'X-Parse-Application-Id': 'test',
-            'X-Parse-Master-Key': 'test'
-          };
-          request.post(
-            {
-              headers: headers,
-              url: 'http://localhost:8378/1/import_relation_data/TestObjectDad/RelationObject',
-              formData: {
-                importFile: {
-                  value: Buffer.from(JSON.stringify({
-                    results: [
-                      {
-                        'owningId': ids.a,
-                        'relatedId': ids.b
-                      }
-                    ]
-                  })),
-                  options: {
-                    filename: 'TestObject:RelationObject.json'
+      }
+      reconfigureServer({
+        emailAdapter: emailAdapter
+      }).then(() => {
+        const headers = {
+          'Content-Type': 'multipart/form-data',
+          'X-Parse-Application-Id': 'test',
+          'X-Parse-Master-Key': 'test'
+        };
+        request({
+          headers: headers,
+          url: 'import_relation_data/TestObjectDad/RelationObject',
+          body: {
+            importFile: {
+              value: Buffer.from(JSON.stringify({
+                results: [
+                  {
+                    'owningId': ids.a,
+                    'relatedId': ids.b
                   }
-                },
-                feedbackEmail: 'my@email.com'
+                ]
+              })),
+              options: {
+                filename: 'TestObject:RelationObject.json'
               }
             },
-            (err, response, body) => {
-              expect(err).toBe(null);
-              expect(body).toEqual('{"response":"We are importing your data. You will be notified by e-mail once it is completed."}');
-            }
-          );
-        });
+            feedbackEmail: 'my@email.com'
+          }
+        }).then(res => {
+          expect(res.body).toEqual('{"response":"We are importing your data. You will be notified by e-mail once it is completed."}');
+        }).catch(done);
       });
+    });
   });
 });
