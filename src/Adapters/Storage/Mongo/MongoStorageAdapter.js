@@ -710,13 +710,12 @@ export class MongoStorageAdapter implements StorageAdapter {
     schema = convertParseSchemaToMongoSchema(schema);
     const isPointerField =
       schema.fields[fieldName] && schema.fields[fieldName].type === 'Pointer';
-    if (isPointerField) {
-      fieldName = `_p_${fieldName}`;
-    }
+    const transformField = transformKey(className, fieldName, schema);
+
     return this._adaptiveCollection(className)
       .then(collection =>
         collection.distinct(
-          transformKey(className, fieldName, schema),
+          transformField,
           transformWhere(className, query, schema)
         )
       )
@@ -724,8 +723,7 @@ export class MongoStorageAdapter implements StorageAdapter {
         objects = objects.filter(obj => obj != null);
         return objects.map(object => {
           if (isPointerField) {
-            const field = fieldName.substring(3);
-            return transformPointerString(schema, field, object);
+            return transformPointerString(schema, fieldName, object);
           }
           return mongoObjectToParseObject(className, object, schema);
         });

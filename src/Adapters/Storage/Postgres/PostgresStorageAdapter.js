@@ -244,7 +244,13 @@ const joinTablesForSchema = schema => {
   return list;
 };
 
-const buildWhereClause = ({ schema, query, index }) => {
+interface WhereClause {
+  pattern: string;
+  values: Array<any>;
+  sorts: Array<any>;
+}
+
+const buildWhereClause = ({ schema, query, index }): WhereClause => {
   const patterns = [];
   let values = [];
   const sorts = [];

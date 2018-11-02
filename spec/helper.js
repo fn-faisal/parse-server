@@ -409,16 +409,14 @@ global.jfail = function(err) {
   fail(JSON.stringify(err));
 };
 
+global.xit_exclude_dbs = () => xit;
+
 global.it_exclude_dbs = excluded => {
   if (excluded.indexOf(process.env.PARSE_SERVER_TEST_DB) >= 0) {
     return xit;
   } else {
     return it;
   }
-};
-
-global.xit_exclude_dbs = () => {
-  return xit;
 };
 
 global.it_only_db = db => {
