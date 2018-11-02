@@ -1,7 +1,7 @@
 const Parse = require('parse/node');
 const request = require('../lib/request');
 
-fdescribe('Import routers', () => {
+describe('Import routers', () => {
   it('import objects from file with array', done => {
     const headers = {
       'Content-Type': 'multipart/form-data',
@@ -39,7 +39,7 @@ fdescribe('Import routers', () => {
           done();
         });
       })
-      .catch(done);
+      .catch(done.fail);
   });
 
   it('import objects from file with results field', done => {
@@ -154,7 +154,7 @@ fdescribe('Import routers', () => {
           done();
         });
       })
-      .catch(done);
+      .catch(done.fail);
   });
 
   it('import objects with object id', done => {
@@ -202,7 +202,7 @@ fdescribe('Import routers', () => {
           done();
         });
       })
-      .catch(done);
+      .catch(done.fail);
   });
 
   it('update objects with existing object id', done => {
@@ -270,7 +270,7 @@ fdescribe('Import routers', () => {
           });
         });
       })
-      .catch(done);
+      .catch(done.fail);
   });
 
   it('send success import mail', done => {
@@ -326,7 +326,7 @@ fdescribe('Import routers', () => {
             'We are importing your data. You will be notified by e-mail once it is completed.'
           );
         })
-        .catch(done);
+        .catch(done.fail);
     });
   });
 
@@ -389,7 +389,7 @@ fdescribe('Import routers', () => {
                 done();
               });
           })
-          .catch(done);
+          .catch(done.fail);
       });
   });
 
@@ -466,7 +466,7 @@ fdescribe('Import routers', () => {
                 '{"response":"We are importing your data. You will be notified by e-mail once it is completed."}'
               );
             })
-            .catch(done);
+            .catch(done.fail);
         });
       });
   });

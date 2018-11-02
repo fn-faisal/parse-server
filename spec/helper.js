@@ -254,6 +254,7 @@ afterEach(function(done) {
                   '_Session',
                   '_Product',
                   '_Audience',
+                  '_ExportProgress',
                 ].indexOf(className) >= 0
               );
             }
