@@ -33,8 +33,8 @@ describe('Export router', () => {
       },
       publicServerURL: 'http://localhost:8378/1',
     })
-      .then(createRecords(3000))
-      .then(
+      .then(() => createRecords(3000))
+      .then(() =>
         request({
           method: 'PUT',
           headers: headers,
@@ -45,7 +45,7 @@ describe('Export router', () => {
           },
         })
       )
-      .then(
+      .then(() =>
         request({
           headers: headers,
           url: 'http://localhost:8378/1/export_progress',
@@ -60,7 +60,7 @@ describe('Export router', () => {
         }
         done();
       })
-      .catch(done.fail);
+      .catch(done);
   });
 
   it_exclude_dbs(['postgres'])('send success export mail', done => {
@@ -87,15 +87,15 @@ describe('Export router', () => {
 
             done();
           })
-          .catch(done.fail);
+          .catch(done);
       },
     };
     reconfigureServer({
       emailAdapter: emailAdapter,
       publicServerURL: 'http://localhost:8378/1',
     })
-      .then(createRecords(2176))
-      .then(
+      .then(() => createRecords(2176))
+      .then(() =>
         request({
           headers: headers,
           url: 'http://localhost:8378/1/classes/ExportTest',
@@ -118,6 +118,6 @@ describe('Export router', () => {
           'We are exporting your data. You will be notified by e-mail once it is completed.'
         );
       })
-      .catch(done.fail);
+      .catch(done);
   });
 });

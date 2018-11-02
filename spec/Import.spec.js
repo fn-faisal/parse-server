@@ -39,7 +39,7 @@ describe('Import routers', () => {
           done();
         });
       })
-      .catch(done.fail);
+      .catch(done);
   });
 
   it('import objects from file with results field', done => {
@@ -154,7 +154,7 @@ describe('Import routers', () => {
           done();
         });
       })
-      .catch(done.fail);
+      .catch(done);
   });
 
   it('import objects with object id', done => {
@@ -202,7 +202,7 @@ describe('Import routers', () => {
           done();
         });
       })
-      .catch(done.fail);
+      .catch(done);
   });
 
   it('update objects with existing object id', done => {
@@ -270,7 +270,7 @@ describe('Import routers', () => {
           });
         });
       })
-      .catch(done.fail);
+      .catch(done);
   });
 
   it('send success import mail', done => {
@@ -326,7 +326,7 @@ describe('Import routers', () => {
             'We are importing your data. You will be notified by e-mail once it is completed.'
           );
         })
-        .catch(done.fail);
+        .catch(done);
     });
   });
 
@@ -389,7 +389,7 @@ describe('Import routers', () => {
                 done();
               });
           })
-          .catch(done.fail);
+          .catch(done);
       });
   });
 
@@ -466,7 +466,7 @@ describe('Import routers', () => {
                 '{"response":"We are importing your data. You will be notified by e-mail once it is completed."}'
               );
             })
-            .catch(done.fail);
+            .catch(done);
         });
       });
   });
