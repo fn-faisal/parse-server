@@ -484,13 +484,10 @@ const _AudienceSchema = convertSchemaToAdapterSchema(
     classLevelPermissions: {},
   })
 );
-const _ExportProgressSchema = convertSchemaToAdapterSchema(
-  injectDefaultSchema({
-    className: '_ExportProgress',
-    fields: defaultColumns._ExportProgress,
-    classLevelPermissions: {},
-  })
-);
+const _ExportProgressSchema = {
+  className: '_ExportProgress',
+  fields: defaultColumns._ExportProgress,
+};
 const VolatileClassesSchemas = [
   _HooksSchema,
   _JobStatusSchema,
