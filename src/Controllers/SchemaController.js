@@ -136,6 +136,11 @@ const defaultColumns: { [string]: SchemaFields } = Object.freeze({
     lastUsed: { type: 'Date' },
     timesUsed: { type: 'Number' },
   },
+  _ExportProgress: {
+    id: { type: 'String' },
+    appId: { type: 'String' },
+    masterKey: { type: 'String' },
+  },
 });
 
 const requiredColumns = Object.freeze({
