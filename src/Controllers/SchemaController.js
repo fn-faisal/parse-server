@@ -137,6 +137,7 @@ const defaultColumns: { [string]: SchemaFields } = Object.freeze({
     timesUsed: { type: 'Number' },
   },
   _ExportProgress: {
+    objectId: { type: 'String' },
     id: { type: 'String' },
     masterKey: { type: 'String' },
     applicationId: { type: 'String' },
@@ -484,10 +485,6 @@ const _AudienceSchema = convertSchemaToAdapterSchema(
     classLevelPermissions: {},
   })
 );
-const _ExportProgressSchema = {
-  className: '_ExportProgress',
-  fields: defaultColumns._ExportProgress,
-};
 const VolatileClassesSchemas = [
   _HooksSchema,
   _JobStatusSchema,
@@ -495,7 +492,6 @@ const VolatileClassesSchemas = [
   _PushStatusSchema,
   _GlobalConfigSchema,
   _AudienceSchema,
-  _ExportProgressSchema,
 ];
 
 const dbTypeMatchesObjectType = (

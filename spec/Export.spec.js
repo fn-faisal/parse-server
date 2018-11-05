@@ -2,7 +2,7 @@ const Parse = require('parse/node');
 const request = require('../lib/request');
 const AdmZip = require('adm-zip');
 
-fdescribe('Export router', () => {
+describe('Export router', () => {
   const headers = {
     'Content-Type': 'application/json',
     'X-Parse-Application-Id': 'test',
