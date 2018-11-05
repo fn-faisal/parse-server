@@ -31,7 +31,8 @@ function RestWrite(
   query,
   data,
   originalData,
-  clientSDK
+  clientSDK,
+  options
 ) {
   if (auth.isReadOnly) {
     throw new Parse.Error(
@@ -46,7 +47,9 @@ function RestWrite(
   this.storage = {};
   this.runOptions = {};
   this.context = {};
-  if (!query && data.objectId) {
+
+  const allowObjectId = options && options.allowObjectId === true;
+  if (!query && data.objectId && !allowObjectId) {
     throw new Parse.Error(
       Parse.Error.INVALID_KEY_NAME,
       'objectId is an invalid field name.'

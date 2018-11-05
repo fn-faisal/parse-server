@@ -163,6 +163,7 @@ const volatileClasses = Object.freeze([
   '_GlobalConfig',
   '_JobSchedule',
   '_Audience',
+  '_ExportProgress',
 ]);
 
 // 10 alpha numberic chars + uppercase
