@@ -137,6 +137,7 @@ const defaultColumns: { [string]: SchemaFields } = Object.freeze({
     timesUsed: { type: 'Number' },
   },
   _ExportProgress: {
+    id: { type: 'String' },
     appId: { type: 'String' },
     masterKey: { type: 'String' },
   },
