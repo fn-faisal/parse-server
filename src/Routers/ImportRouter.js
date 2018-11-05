@@ -82,6 +82,7 @@ export class ImportRouter {
           req.params.className,
           { objectId: restObject.objectId },
           restObject,
+          undefined,
           req.info.clientSDK
         )
         .catch(function(error) {
