@@ -83,7 +83,6 @@ describe('Export router', () => {
             const resultsToCompare = JSON.parse(text);
 
             expect(results.length).toEqual(resultsToCompare.length);
-            console.log('results.length', results.length);
 
             done();
           })

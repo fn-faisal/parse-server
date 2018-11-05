@@ -35,6 +35,7 @@ import { PurgeRouter } from './Routers/PurgeRouter';
 import { AudiencesRouter } from './Routers/AudiencesRouter';
 import { AggregateRouter } from './Routers/AggregateRouter';
 import { ExportRouter } from './Routers/ExportRouter';
+import { ImportRouter } from './Routers/ImportRouter';
 
 import { ParseServerRESTController } from './ParseServerRESTController';
 import * as controllers from './Controllers';
@@ -161,6 +162,11 @@ class ParseServer {
       new PublicAPIRouter().expressRouter()
     );
 
+    api.use(
+      '/',
+      middlewares.allowCrossDomain,
+      new ImportRouter().expressRouter()
+    );
     api.use(bodyParser.json({ type: '*/*', limit: maxUploadSize }));
     api.use(middlewares.allowCrossDomain);
     api.use(middlewares.allowMethodOverride);
