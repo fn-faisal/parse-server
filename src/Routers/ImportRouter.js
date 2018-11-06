@@ -51,9 +51,7 @@ export class ImportRouter {
               ],
             },
           },
-          undefined,
-          req.info.clientSDK,
-          { allowObjectId: true }
+          req.info.clientSDK
         )
         .catch(function(error) {
           if (error.code === Parse.Error.OBJECT_NOT_FOUND) {
@@ -82,7 +80,6 @@ export class ImportRouter {
           req.params.className,
           { objectId: restObject.objectId },
           restObject,
-          undefined,
           req.info.clientSDK
         )
         .catch(function(error) {
@@ -92,7 +89,6 @@ export class ImportRouter {
               req.auth,
               req.params.className,
               restObject,
-              undefined,
               req.info.clientSDK,
               { allowObjectId: true }
             );
