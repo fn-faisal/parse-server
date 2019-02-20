@@ -59,8 +59,6 @@ export class PushController {
       badgeUpdate = () => {
         // Build a real RestQuery so we can use it in RestWrite
         const restQuery = new RestQuery(config, master(config), '_Installation', updateWhere);
-        // change $exists for $ne null for better performance
-        if (restQuery.restWhere && restQuery.restWhere.deviceToken && restQuery.restWhere.deviceToken['$exists']) restQuery.restWhere.deviceToken = {$ne: null}
         return restQuery.buildRestWhere().then(() => {
           const write = new RestWrite(config, master(config), '_Installation', restQuery.restWhere, restUpdate);
           write.runOptions.many = true;

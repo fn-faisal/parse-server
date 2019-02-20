@@ -1,5 +1,6 @@
 import Parse    from 'parse/node';
 import deepcopy from 'deepcopy';
+import _ from 'lodash';
 
 export function isPushIncrementing(body) {
   if (!body.data || !body.data.badge) {
@@ -115,7 +116,24 @@ export function validatePushType(where = {}, validPushTypes = []) {
 export function applyDeviceTokenExists(where) {
   where = deepcopy(where);
   if (!where.hasOwnProperty('deviceToken')) {
-    where['deviceToken'] = {'$exists': true};
+    // where['deviceToken'] = {'$exists': true};
+    where['deviceToken'] = {'$gt': ''};
   }
   return where;
+}
+
+const createIdIntervals = chars => {
+  const c = ('0123456789' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + 'abcdefghijklmnopqrstuvwxyz').split('')
+  return _.flatten(c.map(c1 => (chars || c).map(c2 => c1 + c2)));
+}
+let chars = null
+export function getIdInterval(page, maxPages) {
+  if (!chars) chars = createIdIntervals(createIdIntervals(createIdIntervals()))
+  const idi = Math.ceil(chars.length / maxPages * page)
+  const ci = chars[idi] || 'zzzzzzzzzz'
+  const idf = Math.ceil(chars.length / maxPages * (page + 1))
+  const cf = chars[idf] || ''
+  if (page === 0) return {$lt: cf}
+  else if ((page + 1) >= maxPages) return {$gte: ci}
+  return {$gte: ci, $lt: cf}
 }

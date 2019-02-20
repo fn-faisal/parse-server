@@ -1,6 +1,6 @@
 import { ParseMessageQueue }      from '../ParseMessageQueue';
 import rest                       from '../rest';
-import { applyDeviceTokenExists } from './utils';
+import { applyDeviceTokenExists, getIdInterval } from './utils';
 import Parse from 'parse/node';
 
 const PUSH_CHANNEL = 'parse-server-push';
@@ -29,7 +29,7 @@ export class PushQueue {
     where = applyDeviceTokenExists(where);
 
     // Order by objectId so no impact on the DB
-    const order = 'objectId';
+    // const order = 'objectId';
     return Promise.resolve().then(() => {
       return rest.find(config,
         auth,
@@ -40,13 +40,17 @@ export class PushQueue {
       if (!results || count == 0) {
         return pushStatus.complete();
       }
-      pushStatus.setRunning(Math.ceil(count / limit));
-      let skip = 0;
+      const maxPages = Math.ceil(count / limit)
+      pushStatus.setRunning(maxPages);
+      let skip = 0, page = 0;
       while (skip < count) {
-        const query = { where,
-          limit,
-          skip,
-          order };
+        const _id = getIdInterval(page, maxPages)
+        if (_id) where._id = _id
+        const query = { where };
+        // const query = { where,
+        //   limit,
+        //   skip,
+        //   order };
 
         const pushWorkItem = {
           body,
@@ -56,6 +60,7 @@ export class PushQueue {
         }
         this.parsePublisher.publish(this.channel, JSON.stringify(pushWorkItem));
         skip += limit;
+        page ++;
       }
     });
   }
