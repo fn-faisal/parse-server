@@ -45,7 +45,7 @@ export class PushQueue {
       let skip = 0, page = 0;
       while (skip < count) {
         const _id = getIdInterval(page, maxPages)
-        if (_id) where._id = _id
+        if (_id) where.objectId = _id
         const query = { where };
         // const query = { where,
         //   limit,
