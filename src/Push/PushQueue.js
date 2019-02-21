@@ -2,6 +2,7 @@ import { ParseMessageQueue }      from '../ParseMessageQueue';
 import rest                       from '../rest';
 import { applyDeviceTokenExists, getIdInterval } from './utils';
 import Parse from 'parse/node';
+import log from '../logger';
 
 const PUSH_CHANNEL = 'parse-server-push';
 const DEFAULT_BATCH_SIZE = 100;
@@ -43,6 +44,7 @@ export class PushQueue {
       const maxPages = Math.ceil(count / limit)
       pushStatus.setRunning(maxPages);
       let skip = 0, page = 0;
+      const promises = []
       while (skip < count) {
         const _id = getIdInterval(page, maxPages)
         if (_id) where.objectId = _id
@@ -58,10 +60,21 @@ export class PushQueue {
           pushStatus: { objectId: pushStatus.objectId },
           applicationId: config.applicationId
         }
-        this.parsePublisher.publish(this.channel, JSON.stringify(pushWorkItem));
+        const promise = Promise.resolve(this.parsePublisher.publish(this.channel, JSON.stringify(pushWorkItem))).catch(err => {
+          log.error(err)
+          return err
+        })
+        promises.push(promise);
         skip += limit;
         page ++;
       }
+      // if some errors occurs set running to maxPages - errors.length
+      Promise.all(promises).then(results => {
+        const errors = results.filter(r => r instanceof Error)
+        if (errors.length) {
+          pushStatus.setRunning(maxPages - errors.length);
+        }
+      });
     });
   }
 }
