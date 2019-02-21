@@ -74,7 +74,7 @@ export class PushQueue {
         const errors = results.filter(r => r instanceof Error)
         if (errors.length > 0) {
           if (maxPages - errors.length === 0) {
-            pushStatus.fail(errors[0])
+            throw `No package was sent: ${errors[0].message}\n${errors[0].stack}`
           } else {
             pushStatus.setRunning(maxPages - errors.length);
           }
