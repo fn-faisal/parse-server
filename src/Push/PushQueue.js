@@ -72,8 +72,12 @@ export class PushQueue {
       // if some errors occurs set running to maxPages - errors.length
       return Promise.all(promises).then(results => {
         const errors = results.filter(r => r instanceof Error)
-        if (errors.length) {
-          pushStatus.setRunning(maxPages - errors.length);
+        if (errors.length > 0) {
+          if (maxPages - errors.length === 0) {
+            pushStatus.fail(errors[0])
+          } else {
+            pushStatus.setRunning(maxPages - errors.length);
+          }
         }
       });
     });
