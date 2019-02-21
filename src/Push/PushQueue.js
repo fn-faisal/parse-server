@@ -61,7 +61,8 @@ export class PushQueue {
           applicationId: config.applicationId
         }
         const promise = Promise.resolve(this.parsePublisher.publish(this.channel, JSON.stringify(pushWorkItem))).catch(err => {
-          log.error(err)
+          log.error(err.message)
+          log.error(err.stack)
           return err
         })
         promises.push(promise);
