@@ -204,6 +204,11 @@ export function pushStatusHandler(config, existingObjectId) {
     );
   }
 
+  const update = function(update) {
+    logger.verbose(`_PushStatus ${objectId}: updating values %j`, update);
+    return handler.update({ objectId }, update);
+  }
+
   const trackSent = function(results, UTCOffset, cleanupInstallations = process.env.PARSE_SERVER_CLEANUP_INVALID_INSTALLATIONS) {
     const update = {
       numSent: 0,
@@ -299,6 +304,7 @@ export function pushStatusHandler(config, existingObjectId) {
     setRunning,
     trackSent,
     complete,
+    update,
     fail
   };
 
