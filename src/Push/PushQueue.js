@@ -70,17 +70,19 @@ export class PushQueue {
       // if some errors occurs set running to maxPages - errors.length
       return Promise.all(promises).then(results => {
         const errorMessages = results.filter(r => r instanceof Error).map(e => e.message || e);
-        const errors = _.countBy(errorMessages) || {};
-        if (errorMessages.length > 0) {
+        if (errorMessages.length === 0) {
+          log.warn(`All ${maxPages} packages were enqueued for PushStatus ${pushStatus.objectId}`);
+        } else {
+          const errors = _.countBy(errorMessages) || {};
           const errorsString = JSON.stringify(errors);
           const packagesSent = maxPages - errorMessages.length;
           if (packagesSent === 0) {
-            const errorMessage = `No one push package was sent for PushStatus ${pushStatus.objectId}: ${errorsString}`;
+            const errorMessage = `No one push package was enqueued for PushStatus ${pushStatus.objectId}: ${errorsString}`;
             log.error(errorMessage);
             // throwing error will set status to error
             throw errorMessage;
           } else {
-            log.warn(`${packagesSent} packages was sent and some errors happened for PushStatus ${pushStatus.objectId}: ${errorsString}`);
+            log.warn(`${packagesSent} packages where enqueued and some errors happened for PushStatus ${pushStatus.objectId}: ${errorsString}`);
             pushStatus.setRunning(maxPages - errors.length);
           }
         }
