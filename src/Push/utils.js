@@ -116,19 +116,19 @@ export function validatePushType(where = {}, validPushTypes = []) {
 export function applyDeviceTokenExists(where) {
   where = deepcopy(where);
   if (!where.hasOwnProperty('deviceToken')) {
-    // where['deviceToken'] = {'$exists': true};
-    where['deviceToken'] = {'$gt': ''};
+    where['deviceToken'] = {'$gt': ''}; // change $exists by $gt for better performance
   }
   return where;
 }
 
-const createIdIntervals = chars => {
+const createIdRanges = chars => {
   const c = ('0123456789' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + 'abcdefghijklmnopqrstuvwxyz').split('')
   return _.flatten(c.map(c1 => (chars || c).map(c2 => c1 + c2)));
 }
 let chars = null
-export function getIdInterval(page, maxPages) {
-  if (!chars) chars = createIdIntervals(createIdIntervals(createIdIntervals()))
+export function getIdRange(page, maxPages) {
+  // creates 14776336 ranges
+  if (!chars) chars = createIdRanges(createIdRanges(createIdRanges()))
   const idi = Math.ceil(chars.length / maxPages * page)
   const ci = chars[idi] || 'zzzzzzzzzz'
   const idf = Math.ceil(chars.length / maxPages * (page + 1))
