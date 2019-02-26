@@ -127,13 +127,15 @@ const createIdRanges = chars => {
 }
 let chars = null
 export function getIdRange(page, maxPages) {
+  if (maxPages === 1) return
+  if ((page + 1) > maxPages) throw `Page should be between 0 and ${maxPages - 1}`
   // creates 14776336 ranges
   if (!chars) chars = createIdRanges(createIdRanges(createIdRanges()))
   const idi = Math.ceil(chars.length / maxPages * page)
   const ci = chars[idi] || 'zzzzzzzzzz'
   const idf = Math.ceil(chars.length / maxPages * (page + 1))
   const cf = chars[idf] || ''
-  if (page === 0) return {$lt: cf}
-  else if ((page + 1) >= maxPages) return {$gte: ci}
-  return {$gte: ci, $lt: cf}
+  if (page === 0) return {$lte: cf}
+  else if ((page + 1) === maxPages) return {$gt: ci}
+  return {$gt: ci, $lte: cf}
 }
