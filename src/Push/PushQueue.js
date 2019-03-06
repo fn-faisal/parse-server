@@ -1,9 +1,8 @@
 import { ParseMessageQueue }      from '../ParseMessageQueue';
 import rest                       from '../rest';
-import { applyDeviceTokenExists, getIdRange } from './utils';
+import { applyDeviceTokenExists } from './utils';
 import Parse from 'parse/node';
 import log from '../logger';
-import _ from 'lodash'
 
 const PUSH_CHANNEL = 'parse-server-push';
 const DEFAULT_BATCH_SIZE = 100;
@@ -44,49 +43,30 @@ export class PushQueue {
       }
       const maxPages = Math.ceil(count / limit)
       pushStatus.setRunning(maxPages);
-      let page = 0;
-      const promises = [];
-      while (page < maxPages) {
-        // changes request/limit/orderBy by id range intervals for better performance
-        // https://docs.mongodb.com/manual/reference/method/cursor.skip/
-        // Range queries can use indexes to avoid scanning unwanted documents,
-        // typically yielding better performance as the offset grows compared
-        // to using cursor.skip() for pagination.
-        const idRange = getIdRange(page, maxPages)
-        if (idRange) where.objectId = idRange
-        const query = { where };
+      log.info(`All ${maxPages} packages were enqueued for PushStatus ${pushStatus.objectId}`);
+      // while (page < maxPages) {
+      // changes request/limit/orderBy by id range intervals for better performance
+      // https://docs.mongodb.com/manual/reference/method/cursor.skip/
+      // Range queries can use indexes to avoid scanning unwanted documents,
+      // typically yielding better performance as the offset grows compared
+      // to using cursor.skip() for pagination.
+      const query = { where };
 
-        const pushWorkItem = {
-          body,
-          query,
-          pushStatus: { objectId: pushStatus.objectId },
-          applicationId: config.applicationId
-        }
-        const publishResult = this.parsePublisher.publish(this.channel, JSON.stringify(pushWorkItem))
-        const promise = Promise.resolve(publishResult).catch(err => err)
-        promises.push(promise);
-        page ++;
+      const pushWorkItem = {
+        body,
+        query,
+        maxPages,
+        pushStatus: { objectId: pushStatus.objectId },
+        applicationId: config.applicationId
       }
-      // if some errors occurs set running to maxPages - errors.length
-      return Promise.all(promises).then(results => {
-        const errorMessages = results.filter(r => r instanceof Error).map(e => e.message || e);
-        if (errorMessages.length === 0) {
-          log.warn(`All ${maxPages} packages were enqueued for PushStatus ${pushStatus.objectId}`);
-        } else {
-          const errors = _.countBy(errorMessages) || {};
-          const errorsString = JSON.stringify(errors);
-          const packagesSent = maxPages - errorMessages.length;
-          if (packagesSent === 0) {
-            const errorMessage = `No one push package was enqueued for PushStatus ${pushStatus.objectId}: ${errorsString}`;
-            log.error(errorMessage);
-            // throwing error will set status to error
-            throw errorMessage;
-          } else {
-            log.warn(`${packagesSent} packages where enqueued and some errors happened for PushStatus ${pushStatus.objectId}: ${errorsString}`);
-            pushStatus.setRunning(maxPages - errors.length);
-          }
-        }
-      });
+      return this.parsePublisher.publish(this.channel, JSON.stringify(pushWorkItem)).then(reponse => {
+        const result = reponse.data || reponse
+        log.info(`All ${maxPages} packages were enqueued for PushStatus ${pushStatus.objectId}`, result);
+        return result
+      })
+    }).catch(err => {
+      log.info(`Can't count installations for PushStatus ${pushStatus.objectId}: ${err.message}`);
+      throw err
     });
   }
 }
