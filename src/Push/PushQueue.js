@@ -59,7 +59,8 @@ export class PushQueue {
         pushStatus: { objectId: pushStatus.objectId },
         applicationId: config.applicationId
       }
-      return this.parsePublisher.publish(this.channel, JSON.stringify(pushWorkItem)).then(reponse => {
+      const publishResult = Promise.resolve(this.parsePublisher.publish(this.channel, JSON.stringify(pushWorkItem)))
+      return publishResult.then(reponse => {
         const result = reponse.data || reponse
         log.info(`All ${maxPages} packages were enqueued for PushStatus ${pushStatus.objectId}`, result);
         return result
