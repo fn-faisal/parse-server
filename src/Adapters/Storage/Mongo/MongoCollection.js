@@ -44,7 +44,7 @@ export default class MongoCollection {
       index[key] = '2d';
       return (
         this._mongoCollection
-          .createIndex(index)
+          .createIndex(index,{ background: true })
           // Retry, but just once.
           .then(() =>
             this._rawFind(query, {
