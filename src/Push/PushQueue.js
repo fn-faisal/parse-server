@@ -71,7 +71,7 @@ export class PushQueue {
           )
         );
         return publishResult.then(reponse => {
-          const result = reponse.data || reponse;
+          const result = reponse && reponse.data || reponse;
           log.info(
             `All ${maxPages} packages were enqueued for PushStatus ${
               pushStatus.objectId
