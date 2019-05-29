@@ -133,7 +133,7 @@ export function validatePushType(where = {}, validPushTypes = []) {
 export function applyDeviceTokenExists(where) {
   where = deepcopy(where);
   if (!where.hasOwnProperty('deviceToken')) {
-    where['deviceToken'] = { $exists: true };
+    where['deviceToken'] = { $gt: '' }; // change $exists by $gt for better performance
   }
   return where;
 }
