@@ -14,6 +14,9 @@ const AlwaysSelectedKeys = ['objectId', 'createdAt', 'updatedAt', 'ACL'];
 //   include
 //   keys
 //   redirectClassNameForKey
+//   readPreference
+//   includeReadPreference
+//   subqueryReadPreference
 function RestQuery(
   config,
   auth,
@@ -30,7 +33,6 @@ function RestQuery(
   this.clientSDK = clientSDK;
   this.response = null;
   this.findOptions = {};
-  this.isWrite = false;
 
   if (!this.auth.isMaster) {
     if (this.className == '_Session') {
@@ -223,7 +225,9 @@ RestQuery.prototype.each = function(callback) {
       results.forEach(callback);
       finished = results.length < restOptions.limit;
       if (!finished) {
-        restWhere.objectId = { $gt: results[results.length - 1].objectId };
+        restWhere.objectId = Object.assign({}, restWhere.objectId, {
+          $gt: results[results.length - 1].objectId,
+        });
       }
     }
   );
@@ -255,12 +259,6 @@ RestQuery.prototype.buildRestWhere = function() {
     .then(() => {
       return this.replaceEquality();
     });
-};
-
-// Marks the query for a write attempt, so we read the proper ACL (write instead of read)
-RestQuery.prototype.forWrite = function() {
-  this.isWrite = true;
-  return this;
 };
 
 // Uses the Auth object to get the list of roles, adds the user id
@@ -367,6 +365,8 @@ RestQuery.prototype.replaceInQuery = function() {
   if (this.restOptions.subqueryReadPreference) {
     additionalOptions.readPreference = this.restOptions.subqueryReadPreference;
     additionalOptions.subqueryReadPreference = this.restOptions.subqueryReadPreference;
+  } else if (this.restOptions.readPreference) {
+    additionalOptions.readPreference = this.restOptions.readPreference;
   }
 
   var subquery = new RestQuery(
@@ -426,6 +426,8 @@ RestQuery.prototype.replaceNotInQuery = function() {
   if (this.restOptions.subqueryReadPreference) {
     additionalOptions.readPreference = this.restOptions.subqueryReadPreference;
     additionalOptions.subqueryReadPreference = this.restOptions.subqueryReadPreference;
+  } else if (this.restOptions.readPreference) {
+    additionalOptions.readPreference = this.restOptions.readPreference;
   }
 
   var subquery = new RestQuery(
@@ -489,6 +491,8 @@ RestQuery.prototype.replaceSelect = function() {
   if (this.restOptions.subqueryReadPreference) {
     additionalOptions.readPreference = this.restOptions.subqueryReadPreference;
     additionalOptions.subqueryReadPreference = this.restOptions.subqueryReadPreference;
+  } else if (this.restOptions.readPreference) {
+    additionalOptions.readPreference = this.restOptions.readPreference;
   }
 
   var subquery = new RestQuery(
@@ -550,6 +554,8 @@ RestQuery.prototype.replaceDontSelect = function() {
   if (this.restOptions.subqueryReadPreference) {
     additionalOptions.readPreference = this.restOptions.subqueryReadPreference;
     additionalOptions.subqueryReadPreference = this.restOptions.subqueryReadPreference;
+  } else if (this.restOptions.readPreference) {
+    additionalOptions.readPreference = this.restOptions.readPreference;
   }
 
   var subquery = new RestQuery(
@@ -570,19 +576,8 @@ RestQuery.prototype.replaceDontSelect = function() {
   });
 };
 
-const cleanResultOfSensitiveUserInfo = function(result, auth, config) {
-  delete result.password;
-
-  if (auth.isMaster || (auth.user && auth.user.id === result.objectId)) {
-    return;
-  }
-
-  for (const field of config.userSensitiveFields) {
-    delete result[field];
-  }
-};
-
 const cleanResultAuthData = function(result) {
+  delete result.password;
   if (result.authData) {
     Object.keys(result.authData).forEach(provider => {
       if (result.authData[provider] === null) {
@@ -645,15 +640,11 @@ RestQuery.prototype.runFind = function(options = {}) {
   if (options.op) {
     findOptions.op = options.op;
   }
-  if (this.isWrite) {
-    findOptions.isWrite = true;
-  }
   return this.config.database
-    .find(this.className, this.restWhere, findOptions)
+    .find(this.className, this.restWhere, findOptions, this.auth)
     .then(results => {
       if (this.className === '_User') {
         for (var result of results) {
-          cleanResultOfSensitiveUserInfo(result, this.auth, this.config);
           cleanResultAuthData(result);
         }
       }
@@ -829,6 +820,8 @@ function includePath(config, auth, response, path, restOptions = {}) {
     includeRestOptions.readPreference = restOptions.includeReadPreference;
     includeRestOptions.includeReadPreference =
       restOptions.includeReadPreference;
+  } else if (restOptions.readPreference) {
+    includeRestOptions.readPreference = restOptions.readPreference;
   }
 
   const queryPromises = Object.keys(pointersHash).map(className => {
