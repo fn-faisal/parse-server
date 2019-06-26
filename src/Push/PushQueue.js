@@ -44,11 +44,6 @@ export class PushQueue {
         }
         const maxPages = Math.ceil(count / limit);
         pushStatus.setRunning(maxPages);
-        log.info(
-          `All ${maxPages} packages were enqueued for PushStatus ${
-            pushStatus.objectId
-          }`
-        );
         // while (page < maxPages) {
         // changes request/limit/orderBy by id range intervals for better performance
         // https://docs.mongodb.com/manual/reference/method/cursor.skip/
